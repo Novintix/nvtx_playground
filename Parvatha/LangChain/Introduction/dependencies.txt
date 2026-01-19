@@ -1,0 +1,8 @@
+langchain classes
+langchain_community : pre built tools
+langchain-google-genai : thisis a google chat model know as classes that langchain provides out of the box and it's completely free. we can also use openAI chat model.
+python-dotenv
+tavily search - makes google search
+
+
+ 
