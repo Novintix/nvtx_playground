@@ -3,22 +3,24 @@ import requests
 from dotenv import load_dotenv
 
 from langchain_groq import ChatGroq
+from langchain_tavily import TavilySearch
+from langchain.tools import tool
+from langchain.agents import create_agent
 
-# ---------------------------
-# Load env
-# ---------------------------
 load_dotenv()
 
 # ---------------------------
-# Weather function (pure Python)
+# Weather Tool
 # ---------------------------
+@tool
 def get_weather(city: str) -> str:
+    """Get the current weather for a given city."""
     api_key = os.getenv("OPENWEATHER_API_KEY")
     if not api_key:
         return "OpenWeather API key not found."
 
     url = (
-        "http://api.openweathermap.org/data/2.5/weather"
+        f"http://api.openweathermap.org/data/2.5/weather"
         f"?q={city}&appid={api_key}&units=metric"
     )
 
@@ -30,34 +32,41 @@ def get_weather(city: str) -> str:
     desc = data["weather"][0]["description"]
     temp = data["main"]["temp"]
 
-    return f"The weather in {city} appears to be {desc} with a temperature of {temp}°C."
+    return f"The current weather in {city} is {desc} with {temp}°C."
 
 
 # ---------------------------
-# LLM
+# LLM (Groq)
 # ---------------------------
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
-    api_key=os.getenv("GROQ_API_KEY"),
-    temperature=0
+    api_key=os.getenv("GROQ_API_KEY")
 )
 
 # ---------------------------
-# Step 1: Ask model what to do
+# Tools
 # ---------------------------
-decision = llm.invoke(
-    "You are a router. If the user asks about weather, reply ONLY with: WEATHER:<city>\n\n"
-    "User: What is the current weather in New York?"
+tools = [
+    TavilySearch(),
+    get_weather
+]
+
+# ---------------------------
+# ReAct Agent
+# ---------------------------
+agent = create_agent(
+    model="groq:llama-3.1-8b-instant",
+    tools=tools
 )
 
-content = decision.content.strip()
 
 # ---------------------------
-# Step 2: Execute tool deterministically
+# Invoke Agent
 # ---------------------------
-if content.startswith("WEATHER:"):
-    city = content.split("WEATHER:")[1].strip()
-    result = get_weather(city)
-    print(result)
-else:
-    print(decision.content)
+messages = [
+    {"role": "user", "content": "What is the current weather in New York?"}
+]
+
+response = agent.invoke({"messages": messages})
+
+print(response["messages"][-1].content)
