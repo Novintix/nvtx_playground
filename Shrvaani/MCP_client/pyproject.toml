@@ -1,0 +1,12 @@
+[project]
+name = "mcp-learning"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-groq>=1.1.1",
+    "langchain-openai>=1.1.7",
+    "mcp-use>=1.5.2",
+    "mcp[cli]>=1.25.0",
+]
