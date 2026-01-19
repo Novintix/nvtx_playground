@@ -1,0 +1,89 @@
+langchain
+langchain-groq
+langchain-community
+langchain-core
+tavily-python
+langchain-tavily
+python-dotenv
+
+
+import os
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent
+from langchain_core.tools import tool
+from langchain_tavily import TavilySearch
+import datetime
+
+load_dotenv()
+
+# Initialize the LLM
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    groq_api_key=os.getenv("GROQ_API_KEY")
+)
+
+# Create the search tool
+search_tool = TavilySearch(
+    api_key=os.getenv("TAVILY_API_KEY")
+)
+
+# Create custom tool
+@tool
+def get_system_time(time_format: str = "%Y-%m-%d %H:%M:%S") -> str:
+    """Returns the current system time in the specified format.
+    
+    Args:
+        time_format: The datetime format string (default: "%Y-%m-%d %H:%M:%S")
+    
+    Returns:
+        str: The current system time as a formatted string
+    """
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime(time_format)           
+    return formatted_time
+
+# List of tools
+tools = [search_tool, get_system_time]
+
+# System prompt
+system_prompt = """You are a helpful AI assistant with access to tools.
+
+When answering questions:
+1. Think step by step about what information you need
+2. Use the tavily_search tool to search for current information about SpaceX launches
+3. Use the get_system_time tool to get the current date and time
+4. Calculate time differences when needed
+5. Provide clear, accurate answers
+
+Always use the tools to get accurate, up-to-date information."""
+
+# Create the agent
+agent = create_agent(
+    model=llm, 
+    tools=tools, 
+    system_prompt=system_prompt
+)
+
+# Question
+question = "what is langgraph?"
+
+print(f"Question: {question}\n")
+print("Processing...\n")
+
+# Invoke the agent with the question
+result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+
+print("="*50)
+print("FINAL ANSWER:")
+print("="*50)
+
+# Extract the final message
+if result and 'messages' in result:
+    final_message = result['messages'][-1]
+    if hasattr(final_message, 'content'):
+        print(final_message.content)
+    else:
+        print(final_message)
+else:
+    print(result)
