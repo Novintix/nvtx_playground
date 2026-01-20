@@ -17,8 +17,14 @@ async def create_session() -> str:
         "created_at": now,
         "expires_at": now + timedelta(hours=TTL_HOURS),
 
-        # store encrypted notes
-        "notes_enc": encrypt_dict({}),
+        
+        # inside create_session doc:
+        "notes_enc": encrypt_dict({
+            "_round_count": 0,
+            "_asked_keys": []
+        }),
+
+
         "history": []
     }
 

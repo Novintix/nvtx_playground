@@ -1,15 +1,14 @@
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 
 
-# -------- Request Model (Postman sends this) --------
 class SymptomInput(BaseModel):
     user_input: str
     previous_notes: Optional[Dict[str, str]] = None
 
 
-# -------- Response Models (Agent returns this) --------
 class FollowUpQuestion(BaseModel):
+    answer_key: str          # ✅ stable key for frontend/CLI
     question: str
     reason: str
 
@@ -17,7 +16,7 @@ class FollowUpQuestion(BaseModel):
 class ClinicalNotes(BaseModel):
     triage_summary: str
     red_flags: str
-    confidence: str  # "low" | "medium" | "high"
+    confidence: Literal["low", "medium", "high"]
 
 
 class SymptomAgentResponse(BaseModel):
