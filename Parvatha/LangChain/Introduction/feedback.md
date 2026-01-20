@@ -8,4 +8,4 @@ Feedback on the react agent :
     a. Step order
     b. Observation before reasoning.
 6. Tool result are not validated nor considered : what if it gave a false information.
-7. Your 70b model is an overkill. 
+7. Your 70b model is an overkill, maybe use smaller models like 8b is enough. 
