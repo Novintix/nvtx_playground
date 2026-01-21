@@ -11,8 +11,10 @@ load_dotenv()
 # ---------------- LLM ----------------
 # Allow overriding the model without code changes (e.g., if Groq deprecates a model).
 # Groq currently supports newer Llama 3.1 models; keep a safe default.
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
-llm = ChatGroq(model=GROQ_MODEL, temperature=0)
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0
+)
 
 # ---------------- State ----------------
 class AgentState(TypedDict):
