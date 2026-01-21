@@ -9,6 +9,7 @@ from app.services.session_service import create_session, get_session, update_ses
 
 from app.agents.risk_hypothesis.agent_main import run_risk_agent
 from app.services.question_policy import enforce_followup_policy
+from app.services.notes_postprocess import patch_triage_summary  # ✅ NEW
 
 app = FastAPI(title="Advanced Patient Triage")
 
@@ -68,6 +69,9 @@ async def triage_start(payload: StartTriageRequest):
         # Notes start from agent clinical notes
         notes = result.clinical_notes.model_dump()
 
+        # ✅ Patch summary for consistency
+        notes = patch_triage_summary(notes)
+
         # Initialize policy tracking fields
         notes["_round_count"] = 1
         notes["_asked_keys"] = []
@@ -84,6 +88,9 @@ async def triage_start(payload: StartTriageRequest):
         agent1_output = result.model_dump()
         agent1_output["follow_up_questions"] = filtered_followups
         agent1_output["ready_for_next_agent"] = (len(filtered_followups) == 0)
+
+        # ✅ Also patch the outgoing summary (same as stored)
+        agent1_output["clinical_notes"] = patch_triage_summary(agent1_output["clinical_notes"])
 
         # Save session state
         await update_session(
@@ -124,9 +131,12 @@ async def triage_continue(payload: ContinueTriageRequest):
     # Load decrypted notes (includes previous answers + tracking)
     notes = session["notes"]
 
-    # Merge new user answers into notes
+    # ✅ Merge new user answers into notes, normalize whitespace
     for k, v in payload.answers.items():
-        notes[k] = v
+        if isinstance(v, str):
+            notes[k] = " ".join(v.split())
+        else:
+            notes[k] = v
 
     try:
         # Run Agent 1 again using previous_notes (contains answers)
@@ -139,6 +149,9 @@ async def triage_continue(payload: ContinueTriageRequest):
         clinical_notes = dict(notes)  # keeps duration, severity, etc.
         agent_notes = result.clinical_notes.model_dump()
         clinical_notes.update(agent_notes)
+
+        # ✅ Patch summary so it never contradicts structured fields
+        clinical_notes = patch_triage_summary(clinical_notes)
 
         # Preserve internal tracking fields from session notes
         prev_round_count = int(notes.get("_round_count", 0))
@@ -163,10 +176,14 @@ async def triage_continue(payload: ContinueTriageRequest):
         agent1_output = result.model_dump()
         agent1_output["follow_up_questions"] = filtered_followups
 
+        # ✅ Patch outgoing clinical summary too
+        agent1_output["clinical_notes"] = patch_triage_summary(agent1_output["clinical_notes"])
+
         # Decide if we should proceed
         force_proceed = round_count >= MAX_CLARIFICATION_ROUNDS
         if force_proceed:
             agent1_output["ready_for_next_agent"] = True
+            agent1_output["follow_up_questions"] = []
             agent1_output["clinical_notes"]["triage_summary"] += (
                 f" | Note: Max clarification rounds reached ({MAX_CLARIFICATION_ROUNDS}). "
                 "Proceeding with available info."
