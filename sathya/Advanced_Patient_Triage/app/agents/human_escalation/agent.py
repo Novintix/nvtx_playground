@@ -13,6 +13,10 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
 def _extract_json(text: str) -> dict:
+    """
+    Groq should return JSON. This fallback extracts the first JSON object
+    if extra text appears (should be rare if prompt is strict).
+    """
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -22,19 +26,26 @@ def _extract_json(text: str) -> dict:
         return json.loads(match.group(0))
 
 
-async def specialist_routing_agent(payload: dict) -> dict:
+async def human_escalation_agent(payload: dict) -> dict:
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is missing in .env")
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+        {
+            "role": "user",
+            "content": (
+                "Create the escalation JSON using ONLY the input below.\n"
+                "INPUT:\n"
+                f"{json.dumps(payload, ensure_ascii=False)}"
+            ),
+        },
     ]
 
     req = {
         "model": GROQ_MODEL,
         "messages": messages,
-        "temperature": 0.2
+        "temperature": 0.1,
     }
 
     headers = {

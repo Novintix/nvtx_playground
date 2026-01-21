@@ -14,6 +14,11 @@ STRICT RULES
   TRUST structured fields (e.g., duration, severity_1_to_10, sob_at_rest, etc.).
 - Output MUST be valid JSON only. No markdown, no explanation.
 
+IMPORTANT
+For headache, do NOT output HIGH only because severity is high.
+HIGH requires red-flag pattern: sudden onset, worst-ever, neuro deficit, confusion, high fever/neck stiffness, head injury, seizure.
+If severe but no red flags, choose MEDIUM and recommend clinician evaluation.
+
 RISK LEVELS (choose one)
 low | medium | high | critical
 
