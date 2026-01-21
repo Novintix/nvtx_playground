@@ -65,7 +65,7 @@ async def triage_start(payload: StartTriageRequest):
         # Run agent first time
         result = await run_symptom_agent(payload.user_input, previous_notes={})
 
-        # Start notes from agent clinical notes
+        # Notes start from agent clinical notes
         notes = result.clinical_notes.model_dump()
 
         # Initialize policy tracking fields
@@ -80,7 +80,7 @@ async def triage_start(payload: StartTriageRequest):
             max_questions=MAX_QUESTIONS_PER_TURN
         )
 
-        # Build output payload we will return/store (override followups)
+        # Build output payload (override followups)
         agent1_output = result.model_dump()
         agent1_output["follow_up_questions"] = filtered_followups
         agent1_output["ready_for_next_agent"] = (len(filtered_followups) == 0)
@@ -121,22 +121,24 @@ async def triage_continue(payload: ContinueTriageRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Invalid session_id")
 
-    # Load decrypted notes
+    # Load decrypted notes (includes previous answers + tracking)
     notes = session["notes"]
 
-    # Merge user answers into notes
+    # Merge new user answers into notes
     for k, v in payload.answers.items():
         notes[k] = v
 
     try:
-        # Run Agent 1 again
+        # Run Agent 1 again using previous_notes (contains answers)
         result = await run_symptom_agent(
             user_input=f"Additional patient answers: {payload.answers}",
             previous_notes=notes
         )
 
-        # Pull updated clinical notes from agent
-        clinical_notes = result.clinical_notes.model_dump()
+        # ✅ IMPORTANT: keep previous answers, then overlay agent clinical_notes
+        clinical_notes = dict(notes)  # keeps duration, severity, etc.
+        agent_notes = result.clinical_notes.model_dump()
+        clinical_notes.update(agent_notes)
 
         # Preserve internal tracking fields from session notes
         prev_round_count = int(notes.get("_round_count", 0))
@@ -145,11 +147,11 @@ async def triage_continue(payload: ContinueTriageRequest):
         # Increment round count
         round_count = prev_round_count + 1
 
-        # Merge tracking into notes (to be stored encrypted)
+        # Update tracking fields
         clinical_notes["_round_count"] = round_count
         clinical_notes["_asked_keys"] = prev_asked_keys
 
-        # Enforce policy (dedupe + max questions + skip already asked keys)
+        # Enforce follow-up policy (dedupe + max questions + avoid already asked keys)
         raw_followups = [q.model_dump() for q in result.follow_up_questions]
         filtered_followups, clinical_notes = enforce_followup_policy(
             followups=raw_followups,
@@ -185,9 +187,16 @@ async def triage_continue(payload: ContinueTriageRequest):
 
         # If intake complete (or forced), call Agent 2
         if agent1_output["ready_for_next_agent"] is True:
+            # ✅ Pass full merged notes (includes answers like duration="2 years")
+            full_notes_for_agent2 = dict(clinical_notes)
+
+            # Remove internal tracking fields
+            full_notes_for_agent2.pop("_round_count", None)
+            full_notes_for_agent2.pop("_asked_keys", None)
+
             risk = await run_risk_agent(
                 identified_symptoms=agent1_output["identified_symptoms"],
-                clinical_notes=agent1_output["clinical_notes"]
+                clinical_notes=full_notes_for_agent2
             )
 
             # Store risk output
