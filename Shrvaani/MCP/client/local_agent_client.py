@@ -17,13 +17,13 @@ api_key = os.getenv("GROQ_API_KEY")
 # ✅ Safe music folder path
 MUSIC_FOLDER = str(Path.home() / "Music")
 
-
+# Local agent client is a client that uses MCP tools to search for files and then plays them locally.
 async def main():
     # ✅ SAFE PRINTS (before MCP stdio starts)
     print("✅ Loaded .env from:", ENV_PATH)
     print("✅ GROQ_API_KEY present:", bool(api_key))
 
-    user_query = "Play the song 'Kannazhaga The Kiss Of Love' from my music folder"
+    user_query = "Play the song 'Memories - Maroon 5' from my music folder"
 
     # ✅ Extract song name from user query (simple logic)
     song_query = user_query.lower()
@@ -44,7 +44,7 @@ async def main():
         command="uv",
         args=["run", "python", "server/local_agent_server.py"],
     )
-
+    # best match to play, after elicitation if needed (multiple matches - elicitation is where the agent asks user to choose)
     best_match = None
 
     async with stdio_client(server_params) as (reader, writer):

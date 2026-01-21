@@ -3,7 +3,7 @@ import asyncio
 from mcp.client.session import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 
-
+#Resource client lists and reads resources from the MCP resource server according to the prompt provided.
 async def main():
     server_params = StdioServerParameters(
         command="uv",

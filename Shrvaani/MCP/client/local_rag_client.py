@@ -18,10 +18,11 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 DOCS_FOLDER = str(Path.home() / "Documents")
 
+# Local RAG agent is a client that searches for local documents using MCP tools and summarizes them using an LLM.
 
 async def main():
-    # ✅ Change this query to your file name
-    user_query = "Summarize my file resume.pdf"
+    #User query to summarize a local document
+    user_query = "resume.pdf" # file name to summarize
 
     # crude filename extraction
     filename = user_query.lower().replace("summarize", "").replace("my file", "").strip()
@@ -90,7 +91,6 @@ async def main():
                 read_result = await session.call_tool("read_pdf_text", {"path": file_path})
             else:
                 read_result = await session.call_tool("read_text_file", {"path": file_path})
-
 
             # read_result.content may contain TextContent objects
             file_text = ""

@@ -2,8 +2,9 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("resources-server")
 
+# Resources are used for serving fetchable data to clients. It reads the data and returns it when requested.
 
-# ✅ Resource 1: simple text resource
+# ✅ Resource 1: simple text resource / this resource provides an introductory document about MCP, while the user query is mentioned as "retrieve the intro doc", the details will be returned as the response.
 @mcp.resource("docs://mcp/intro")
 def intro_doc():
     return """
@@ -16,7 +17,7 @@ Servers can expose:
 """
 
 
-# ✅ Resource 2: policy resource example
+# ✅ Resource 2: policy resource example / this resource provides a demo company security policy, while the user query is mentioned as "retrieve the company security policy", the details will be returned as the response.
 @mcp.resource("policy://company/security")
 def company_security_policy():
     return """

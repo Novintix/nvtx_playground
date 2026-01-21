@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("prompts-server")
 
-
+# Prompts are reusable instruction templates, that can be used by clients for various tasks like summarization, email writing, etc.
 @mcp.prompt()
 def summarize(text: str):
     return f"""
