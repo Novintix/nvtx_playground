@@ -11,7 +11,7 @@ load_dotenv()
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-
+# prompt clients are basically clients that request prompt templates from a server and use them to generate responses using an LLM.
 def convert_mcp_messages_to_chat(messages):
     """
     Convert MCP messages into Groq/OpenAI-style chat messages:

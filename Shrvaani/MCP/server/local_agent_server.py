@@ -19,7 +19,7 @@ def is_allowed_path(p: Path) -> bool:
     p = p.resolve()
     return any(str(p).startswith(str(root.resolve())) for root in ALLOWED_ROOTS)
 
-
+#this tool lists files in a given folder, with optional filtering by file extensions
 @mcp.tool()
 def list_files(folder: str, extensions: List[str] = None) -> List[str]:
     """
@@ -44,7 +44,7 @@ def list_files(folder: str, extensions: List[str] = None) -> List[str]:
 
     return results
 
-
+#this tool searches for files in a given folder matching a query in their names
 @mcp.tool()
 def search_files(folder: str, query: str) -> List[str]:
     """
@@ -67,7 +67,7 @@ def search_files(folder: str, query: str) -> List[str]:
 
     return matches[:50]
 
-
+# This tool reads text from a PDF file safely
 @mcp.tool()
 def read_pdf_text(path: str) -> str:
     """
@@ -93,13 +93,26 @@ def read_pdf_text(path: str) -> str:
         return text.strip()
     except Exception as e:
         return f"❌ Failed to read PDF: {e}"
+    
+# This tool reads text-like files (txt, md, json, csv) safely
+@mcp.tool()
+def read_text_file(path: str) -> str:
+    """
+    Read a text-like file safely (txt, md, json, csv).
+    """
+    file_path = Path(path).expanduser()
 
+    if not file_path.exists():
+        return f"❌ File not found: {file_path}"
 
-# ⚠️ NOTE:
-# We are intentionally NOT using play_audio via MCP stdio,
-# because it can close the stdio session unexpectedly on macOS.
-# We'll play on the CLIENT side instead.
+    if not is_allowed_path(file_path):
+        return f"❌ Access denied. File outside allowed roots: {file_path}"
 
+    allowed_ext = {".txt", ".md", ".json", ".csv"}
+    if file_path.suffix.lower() not in allowed_ext:
+        return f"❌ Not a readable text file type: {file_path.suffix}"
+
+    return file_path.read_text(encoding="utf-8", errors="ignore")
 
 if __name__ == "__main__":
     mcp.run()

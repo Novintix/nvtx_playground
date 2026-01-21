@@ -3,7 +3,7 @@ import asyncio
 from mcp.client.session import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 
-
+#Tool clients triggers the tools available on the MCP tool server according to the prompt provided to perform a action.
 async def main():
     server_params = StdioServerParameters(
         command="uv",
