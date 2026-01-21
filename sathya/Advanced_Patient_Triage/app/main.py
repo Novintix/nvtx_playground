@@ -9,7 +9,8 @@ from app.services.session_service import create_session, get_session, update_ses
 
 from app.agents.risk_hypothesis.agent_main import run_risk_agent
 from app.services.question_policy import enforce_followup_policy
-from app.services.notes_postprocess import patch_triage_summary  # ✅ NEW
+from app.services.notes_postprocess import patch_triage_summary  
+from app.agents.risk_scoring_safety.agent_main import run_risk_scoring_agent
 
 app = FastAPI(title="Advanced Patient Triage")
 
@@ -216,13 +217,21 @@ async def triage_continue(payload: ContinueTriageRequest):
                 clinical_notes=full_notes_for_agent2
             )
 
-            # Store risk output
+            # ✅ Agent 3: Risk Scoring & Safety (config-driven)
+            risk_data = risk.model_dump()
+            risk_scoring = await run_risk_scoring_agent(
+                risk_output=risk_data,
+                clinical_notes=full_notes_for_agent2
+            )
+
+            # Store risk + agent3 output
             await update_session(
                 session_id=payload.session_id,
                 notes=clinical_notes,
                 history_item={
                     "type": "risk_agent",
-                    "risk_output": risk.model_dump()
+                    "risk_output": risk_data,
+                    "risk_scoring_output": risk_scoring.model_dump()
                 }
             )
 
@@ -230,7 +239,9 @@ async def triage_continue(payload: ContinueTriageRequest):
                 "session_id": payload.session_id,
                 "passed_to_agent2": True,
                 "symptom_agent": agent1_output,
-                "risk_agent": risk.model_dump()
+                "risk_agent": risk_data,
+                "risk_scoring_agent": risk_scoring.model_dump(),
+                "next_step": "human_escalation" if risk_scoring.risk_level == "HIGH" else "specialist_routing"
             }
 
         # Otherwise keep looping Agent 1

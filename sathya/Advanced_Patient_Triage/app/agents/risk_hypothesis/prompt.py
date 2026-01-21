@@ -9,6 +9,7 @@ STRICT RULES
 - Do NOT prescribe medications.
 - Be safety-first. If emergency warning signs are possible, escalate.
 - Do NOT invent details not supported by input.
+-If any red flag keys exist in clinical_notes (head_injury=yes, confusion=yes, sob_at_rest=yes) include them in red_flags.
 - If there is conflict between triage_summary and structured fields in clinical_notes,
   TRUST structured fields (e.g., duration, severity_1_to_10, sob_at_rest, etc.).
 - Output MUST be valid JSON only. No markdown, no explanation.
