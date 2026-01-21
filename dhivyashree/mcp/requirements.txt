@@ -1,0 +1,8 @@
+langgraph
+langchain-google-genai
+pymongo
+langchain-core
+gitpython
+python-dotenv
+requests
+langchain-groq
