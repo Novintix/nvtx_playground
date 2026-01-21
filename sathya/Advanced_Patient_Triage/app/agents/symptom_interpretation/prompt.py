@@ -18,12 +18,14 @@ Each follow-up question MUST include:
 - question: the question shown to user.
 - reason: why it is needed.
 
-Examples:
+Just an Examples:
 - answer_key: "severity_1_to_10"
 - answer_key: "duration"
 - answer_key: "sob_at_rest"
 - answer_key: "fainting_or_dizziness"
 - answer_key: "palpitations"
+
+ask related to disease
 
 OUTPUT JSON MUST MATCH EXACTLY:
 {
