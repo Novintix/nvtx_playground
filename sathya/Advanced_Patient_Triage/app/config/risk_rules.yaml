@@ -1,0 +1,211 @@
+base_score_by_risk_level:
+  low: 0.20
+  medium: 0.55
+  high: 0.80
+  critical: 0.95
+
+thresholds:
+  HIGH: 0.85
+  MEDIUM: 0.60
+
+# Always attach at least one safety flag for the final level
+final_flags:
+  HIGH: ["requires_immediate_attention"]
+  MEDIUM: ["needs_clinician_followup"]
+  LOW: ["self_care_possible"]
+
+rules:
+  # ----------------------------
+  # GENERAL SEVERITY / DURATION
+  # ----------------------------
+  - id: very_high_severity
+    when:
+      any:
+        - key: severity_1_to_10
+          op: gte
+          value: 8
+        - key: symptom_severity_1_to_10
+          op: gte
+          value: 8
+        - key: vomiting_severity_1_to_10
+          op: gte
+          value: 8
+        - key: chest_pain_severity_1_to_10
+          op: gte
+          value: 8
+    add_score: 0.15
+    add_flags: ["high_symptom_severity"]
+
+  # If the text says "sudden" or "suddenly", treat it as higher risk until clarified
+  - id: sudden_onset_text
+    when:
+      any:
+        - key: triage_summary
+          op: contains
+          value: "sudden"
+        - key: triage_summary
+          op: contains
+          value: "suddenly"
+    add_score: 0.10
+    add_flags: ["sudden_onset_unclear"]
+
+  # ----------------------------
+  # BREATHING / RESPIRATORY
+  # ----------------------------
+  - id: sob_at_rest
+    when:
+      all:
+        - key: sob_at_rest
+          op: eq
+          value: "yes"
+    add_score: 0.25
+    add_flags: ["shortness_of_breath_at_rest", "requires_immediate_attention"]
+
+  - id: cyanosis
+    when:
+      all:
+        - key: cyanosis
+          op: eq
+          value: "yes"
+    add_score: 0.35
+    add_flags: ["cyanosis", "requires_immediate_attention"]
+
+  # ----------------------------
+  # CHEST / CARDIAC-LIKE
+  # ----------------------------
+  - id: severe_chest_pain
+    when:
+      any:
+        - key: chest_pain_severity_1_to_10
+          op: gte
+          value: 8
+        - key: triage_summary
+          op: contains
+          value: "severe chest pain"
+    add_score: 0.25
+    add_flags: ["severe_chest_pain", "requires_immediate_attention"]
+
+  - id: fainting_or_dizziness
+    when:
+      all:
+        - key: fainting_or_dizziness
+          op: eq
+          value: "yes"
+    add_score: 0.25
+    add_flags: ["fainting_or_dizziness", "requires_immediate_attention"]
+
+  # ----------------------------
+  # NEUROLOGIC / MENTAL STATUS
+  # ----------------------------
+  - id: confusion
+    when:
+      all:
+        - key: confusion
+          op: eq
+          value: "yes"
+    add_score: 0.30
+    add_flags: ["confusion", "requires_immediate_attention"]
+
+  # Detect “amnesia” / “memory loss” text signal as needing follow-up at least
+  - id: memory_loss_text_signal
+    when:
+      any:
+        - key: triage_summary
+          op: contains
+          value: "amnesia"
+        - key: triage_summary
+          op: contains
+          value: "memory loss"
+    add_score: 0.15
+    add_flags: ["neurologic_symptom", "needs_clinician_followup"]
+
+  # If the intake captured any neuro red-flag keys
+  - id: neuro_red_flags
+    when:
+      any:
+        - key: one_sided_weakness
+          op: eq
+          value: "yes"
+        - key: speech_trouble
+          op: eq
+          value: "yes"
+        - key: seizure
+          op: eq
+          value: "yes"
+        - key: head_injury
+          op: eq
+          value: "yes"
+    add_score: 0.35
+    add_flags: ["neuro_red_flag", "requires_immediate_attention"]
+
+  # ----------------------------
+  # BLEEDING / GI
+  # ----------------------------
+  - id: vomiting_blood_text
+    when:
+      any:
+        - key: triage_summary
+          op: contains
+          value: "vomiting blood"
+        - key: triage_summary
+          op: contains
+          value: "blood in vomit"
+        - key: triage_summary
+          op: contains
+          value: "vomited blood"
+    add_score: 0.40
+    add_flags: ["possible_gi_bleed", "requires_immediate_attention"]
+
+  - id: black_stools_or_blood_in_stool
+    when:
+      any:
+        - key: blood_in_stool
+          op: eq
+          value: "yes"
+        - key: triage_summary
+          op: contains
+          value: "black stool"
+        - key: triage_summary
+          op: contains
+          value: "black stools"
+    add_score: 0.35
+    add_flags: ["possible_gi_bleed", "requires_immediate_attention"]
+
+  # ----------------------------
+  # MENTAL HEALTH SAFETY
+  # ----------------------------
+  - id: suicidal_thoughts
+    when:
+      all:
+        - key: suicidal_thoughts
+          op: eq
+          value: "yes"
+    add_score: 0.50
+    add_flags: ["self_harm_risk", "requires_immediate_attention"]
+
+  # ----------------------------
+  # MISSING-INFO PENALTIES (CONSERVATIVE)
+  # ----------------------------
+  - id: missing_duration
+    when:
+      any:
+        - key: duration
+          op: eq
+          value: "unknown"
+        - key: vomiting_duration
+          op: eq
+          value: "unknown"
+    add_score: 0.05
+    add_flags: ["missing_duration"]
+
+  - id: missing_severity
+    when:
+      any:
+        - key: severity_1_to_10
+          op: eq
+          value: "unknown"
+        - key: symptom_severity_1_to_10
+          op: eq
+          value: "unknown"
+    add_score: 0.05
+    add_flags: ["missing_severity"]
