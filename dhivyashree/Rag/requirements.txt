@@ -1,0 +1,7 @@
+pymongo
+langchain
+langchain-groq
+langchain-community
+python-dotenv
+numpy
+tiktoken
