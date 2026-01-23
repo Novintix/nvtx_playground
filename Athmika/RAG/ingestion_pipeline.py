@@ -86,6 +86,20 @@ def main():
     chunks = split_documents(documents)
     vector_store = create_vector_store(chunks)
 
+    print("\nTesting similarity search...\n")
+
+    docs = vector_store.similarity_search(
+        "company policy",
+        k=3
+    )
+
+    for d in docs:
+        print("\n---")
+        print("Content:")
+        print(d.page_content)
+        print("Metadata:")
+        print(d.metadata)
+
 
 if __name__ == "__main__":
     main()
