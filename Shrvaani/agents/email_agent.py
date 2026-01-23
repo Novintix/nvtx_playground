@@ -20,7 +20,7 @@ def read_latest_email() -> dict:
 @tool
 def send_email(recipient: str, subject: str, body: str) -> str:
     """Sends an email (mock)."""
-    return f"✅ Email SENT to {recipient}"
+    return f"Email SENT to {recipient}"
 
 model = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="llama-3.1-8b-instant", temperature=0.7)
 
