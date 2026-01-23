@@ -1,0 +1,101 @@
+HEALTH INSURANCE POLICY DOCUMENT
+
+Policy Number: HIP-2026-001
+Insurance Provider: SecureLife Health Insurance Co.
+Policy Holder Name: Sample Customer
+Policy Start Date: 01-Jan-2026
+Policy End Date: 31-Dec-2026
+
+--------------------------------------------------
+1. POLICY OVERVIEW
+--------------------------------------------------
+This Health Insurance Policy provides financial protection against medical expenses incurred due to illness, injury, or hospitalization. The policy covers inpatient treatment, day care procedures, and certain pre- and post-hospitalization expenses, subject to the terms and conditions mentioned herein.
+
+--------------------------------------------------
+2. SUM INSURED
+--------------------------------------------------
+The total sum insured under this policy is INR 5,00,000 (Rupees Five Lakhs Only) per policy year.
+
+--------------------------------------------------
+3. ELIGIBILITY
+--------------------------------------------------
+- Minimum entry age: 18 years
+- Maximum entry age: 65 years
+- Dependent children are covered from 3 months to 25 years of age.
+
+--------------------------------------------------
+4. COVERAGE DETAILS
+--------------------------------------------------
+The policy covers the following medical expenses:
+
+4.1 Hospitalization Expenses
+- Room rent, nursing charges, and ICU expenses
+- Surgeon, anesthetist, and consultant fees
+- Medicines and consumables
+
+4.2 Pre-Hospitalization
+- Medical expenses incurred up to 30 days before hospitalization
+
+4.3 Post-Hospitalization
+- Medical expenses incurred up to 60 days after discharge
+
+4.4 Day Care Procedures
+- Coverage for procedures requiring hospitalization for less than 24 hours such as cataract surgery, chemotherapy, and dialysis
+
+--------------------------------------------------
+5. EXCLUSIONS
+--------------------------------------------------
+The policy does not cover the following:
+
+- Pre-existing diseases during the first 36 months
+- Cosmetic or aesthetic treatments
+- Dental treatment unless arising from an accident
+- Injuries due to self-inflicted harm
+- Treatment for substance abuse or alcohol-related conditions
+
+--------------------------------------------------
+6. WAITING PERIOD
+--------------------------------------------------
+- Initial waiting period of 30 days for all illnesses except accidents
+- Specific diseases have a waiting period of 24 months
+- Pre-existing diseases have a waiting period of 36 months
+
+--------------------------------------------------
+7. CASHLESS FACILITY
+--------------------------------------------------
+Cashless hospitalization is available at network hospitals recognized by SecureLife Health Insurance Co., subject to prior approval.
+
+--------------------------------------------------
+8. CLAIM PROCEDURE
+--------------------------------------------------
+8.1 Cashless Claims
+- Inform the insurer 48 hours before planned hospitalization
+- Submit pre-authorization request at the network hospital
+
+8.2 Reimbursement Claims
+- Submit claim form within 15 days of discharge
+- Attach original bills, discharge summary, and medical reports
+
+--------------------------------------------------
+9. RENEWAL
+--------------------------------------------------
+The policy can be renewed annually. Continuous renewal ensures continuity benefits such as waiting period credits.
+
+--------------------------------------------------
+10. CANCELLATION
+--------------------------------------------------
+The insurer may cancel the policy in case of fraud, misrepresentation, or non-disclosure of material facts.
+
+--------------------------------------------------
+11. GRIEVANCE REDRESSAL
+--------------------------------------------------
+For any grievances, policyholders may contact:
+Email: support@securelifeinsurance.com
+Toll-Free Number: 1800-000-000
+
+--------------------------------------------------
+12. GOVERNING LAW
+--------------------------------------------------
+This policy shall be governed by the laws of India.
+
+END OF POLICY DOCUMENT

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "weather": {
+      "command": "/Users/alexander/.local/bin/uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "/Users/alexander/Documents/tinker/MCP_Practice/server/weather.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+langchain
+langgraph
+langchain-groq
+langchain-openai
+langchain-community
+langchain-chroma
+langchain-tavily
+python-dotenv
+requests
+grandalf
+sentence-transformers
