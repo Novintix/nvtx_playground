@@ -14,7 +14,7 @@ db = Chroma(
     collection_metadata={"hnsw:space":"cosine"}
 )
 
-query = "Which island does SpaceX lease for its launches in the Pacific?"
+query = "In what year does Tesla began production of the Roadster?"
 
 retriever = db.as_retriever(search_type="mmr", search_kwargs={"k":5, "fetch_k":10, "lambda_mult":0.5})
 
