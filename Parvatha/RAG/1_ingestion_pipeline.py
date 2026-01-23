@@ -104,7 +104,7 @@ def load_existing_vectorstore(persist_directory="db/chroma_db"):
     print("Loading existing vector store...")
     
     embedding_model = MistralAIEmbeddings(
-        model="mistral-embed",
+        model=" -embed",
         mistral_api_key=os.getenv("MISTRAL_API_KEY")
     )
     
