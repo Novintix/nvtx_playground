@@ -7,8 +7,9 @@ http://127.0.0.1:8000/triage/start
 Body (raw JSON):
 
 {
-  "user_input": "chest tightness and shortness of breath"
+  "user_input": "fever"
 }
+
 
 
 Response will return:
@@ -24,12 +25,15 @@ http://127.0.0.1:8000/triage/continue
 Body:
 
 {
-  "session_id": "PASTE_SESSION_ID_HERE",
+  "session_id": "Paste here",
   "answers": {
-    "sob_at_rest": "yes",
-    "chest_pain_severity_1_to_10": "9"
+    "temperature_c": "100",
+    "severity_1_to_10": "9",
+    "sob_at_rest": "no",
+    "duration": "1 day"
   }
 }
+
 
 
 ✅ Output behavior:
