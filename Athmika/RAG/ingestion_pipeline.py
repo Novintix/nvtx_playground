@@ -1,7 +1,7 @@
 import os
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain_text_splitters import CharacterTextSplitter
-from sentence_transformers import SentenceTransformer
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
 
@@ -64,7 +64,7 @@ def split_documents(documents, chunk_size=1000, chunk_overlap=0):
 def create_vector_store(chunks, persist_directory="db/chroma_db"):
     """Create and persists ChromaDB vectore store"""
     print("Creating embeddings and storing in ChromaDB")
-    embedding_model = SentenceTransformer(model_name="all-MiniLM-L6-v2")
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     print("--- Creating vector store ---")
     vector_store = Chroma.from_documents(
