@@ -1,6 +1,6 @@
 import os
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
@@ -39,9 +39,9 @@ def load_documnets(docs_path):
 def split_documents(documents, chunk_size=1000, chunk_overlap=0):
     """Split documents into smaller chunks"""
     print("Splitting documents into chunks...")
-    text_splitter = CharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
+        chunk_overlap=150,
         separator="\n"
     )
     

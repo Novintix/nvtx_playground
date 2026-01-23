@@ -16,13 +16,21 @@ db = Chroma(
 
 query = "Which island does SpaceX lease for its launches in the Pacific?"
 
-retriever = db.as_retriever(search_type="similarity", search_kwargs={"k":5,"score_threshold":0.3})
+retriever = db.as_retriever(search_type="mmr", search_kwargs={"k":5, "fetch_k":10, "lambda_mult":0.5})
 
 relevant_docs = retriever.invoke(query)
+seen_sources = set()
+unique_docs = []
+
+for doc in relevant_docs:
+    source = doc.metadata.get("source")
+    if source not in seen_sources:
+        unique_docs.append(doc)
+        seen_sources.add(source)
 
 print(f"Users Query: {query}\n")
 print("---Context---")
-for i,doc in enumerate(relevant_docs,1):
+for i,doc in enumerate(unique_docs,1):
     print(f"\nDocument {i}:")
     print(doc.page_content)
     print("Metadata:", doc.metadata)
