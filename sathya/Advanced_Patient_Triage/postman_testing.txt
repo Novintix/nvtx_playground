@@ -1,0 +1,66 @@
+✅ Postman Testing
+✅ 1) Start Triage Session
+
+POST
+http://127.0.0.1:8000/triage/start
+
+Body (raw JSON):
+
+{
+  "user_input": "chest tightness and shortness of breath"
+}
+
+
+Response will return:
+
+✅ session_id
+✅ follow_up_questions
+
+✅ 2) Continue Triage Session (Loop)
+
+POST
+http://127.0.0.1:8000/triage/continue
+
+Body:
+
+{
+  "session_id": "PASTE_SESSION_ID_HERE",
+  "answers": {
+    "sob_at_rest": "yes",
+    "chest_pain_severity_1_to_10": "9"
+  }
+}
+
+
+✅ Output behavior:
+
+If still incomplete → returns Agent 1 follow-ups again
+
+If ready → automatically runs Agent 2 → 3 → 4 → 5 (conditional)
+
+✅ API Output Meaning
+next_step
+
+"specialist_routing" → safe enough for routing
+
+"human_escalation" → urgent escalation required
+
+When Agent 5 triggers:
+
+If Agent 3 risk_level == HIGH OR safety flag contains:
+
+✅ "requires_immediate_attention"
+
+✅ Risk Scoring is Dynamic (Agent 3)
+
+Agent 3 uses:
+
+📌 app/config/risk_rules.yaml
+
+It supports:
+
+threshold-based scoring
+
+rule boosts
+
+safety override flags

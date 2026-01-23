@@ -15,7 +15,6 @@ from app.agents.risk_scoring_safety.agent_main import run_risk_scoring_agent
 from app.agents.specialist_routing.agent_main import run_specialist_routing_agent
 from app.agents.human_escalation.agent_main import run_human_escalation_agent
 
-
 app = FastAPI(title="Advanced Patient Triage")
 
 # Hard limits to prevent loops
@@ -44,10 +43,7 @@ async def interpret_symptom(data: SymptomInput):
 
         return JSONResponse(
             status_code=200,
-            content={
-                "status": "success",
-                "data": result.model_dump()
-            }
+            content={"status": "success", "data": result.model_dump()}
         )
 
     except AgentRunError as e:
@@ -68,7 +64,7 @@ async def triage_start(payload: StartTriageRequest):
     session_id = await create_session()
 
     try:
-        # Run agent first time
+        # Agent 1 (first pass)
         result = await run_symptom_agent(payload.user_input, previous_notes={})
 
         # Notes start from agent clinical notes
@@ -92,10 +88,10 @@ async def triage_start(payload: StartTriageRequest):
         # Build output payload (override followups)
         agent1_output = result.model_dump()
         agent1_output["follow_up_questions"] = filtered_followups
-        agent1_output["ready_for_next_agent"] = (len(filtered_followups) == 0)
 
-        # Patch outgoing summary (same as stored)
+        # Ensure outgoing clinical_notes matches stored notes summary
         agent1_output["clinical_notes"] = patch_triage_summary(agent1_output["clinical_notes"])
+        agent1_output["ready_for_next_agent"] = (len(filtered_followups) == 0)
 
         # Save session state
         await update_session(
@@ -133,10 +129,10 @@ async def triage_continue(payload: ContinueTriageRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Invalid session_id")
 
-    # Load decrypted notes (includes previous answers + tracking)
+    # Decrypted notes (includes previous answers + tracking)
     notes = session["notes"]
 
-    # Merge new user answers into notes, normalize whitespace
+    # Merge new user answers into notes
     for k, v in payload.answers.items():
         if isinstance(v, str):
             notes[k] = " ".join(v.split())
@@ -144,32 +140,29 @@ async def triage_continue(payload: ContinueTriageRequest):
             notes[k] = v
 
     try:
-        # Run Agent 1 again using previous_notes (contains answers)
+        # Agent 1 again
         result = await run_symptom_agent(
             user_input=f"Additional patient answers: {payload.answers}",
             previous_notes=notes
         )
 
-        # Keep previous answers, then overlay agent clinical_notes
+        # Merge: keep previous answers + overlay agent notes
         clinical_notes = dict(notes)
         agent_notes = result.clinical_notes.model_dump()
         clinical_notes.update(agent_notes)
 
-        # Patch summary so it never contradicts structured fields
+        # Patch summary to avoid contradictions
         clinical_notes = patch_triage_summary(clinical_notes)
 
-        # Preserve internal tracking fields from session notes
+        # Preserve internal tracking fields
         prev_round_count = int(notes.get("_round_count", 0))
         prev_asked_keys = notes.get("_asked_keys", [])
 
-        # Increment round count
         round_count = prev_round_count + 1
-
-        # Update tracking fields
         clinical_notes["_round_count"] = round_count
         clinical_notes["_asked_keys"] = prev_asked_keys
 
-        # Enforce follow-up policy (dedupe + max questions + avoid already asked keys)
+        # Enforce follow-up policy
         raw_followups = [q.model_dump() for q in result.follow_up_questions]
         filtered_followups, clinical_notes = enforce_followup_policy(
             followups=raw_followups,
@@ -177,12 +170,12 @@ async def triage_continue(payload: ContinueTriageRequest):
             max_questions=MAX_QUESTIONS_PER_TURN
         )
 
-        # Build output payload (override followups)
+        # Build Agent 1 output (override followups + patch outgoing notes)
         agent1_output = result.model_dump()
         agent1_output["follow_up_questions"] = filtered_followups
         agent1_output["clinical_notes"] = patch_triage_summary(agent1_output["clinical_notes"])
 
-        # Decide if we should proceed
+        # Decide proceed vs continue
         force_proceed = round_count >= MAX_CLARIFICATION_ROUNDS
         if force_proceed:
             agent1_output["ready_for_next_agent"] = True
@@ -205,30 +198,27 @@ async def triage_continue(payload: ContinueTriageRequest):
             }
         )
 
-        # If intake complete (or forced), call Agent 2 -> Agent 3 -> Agent 4 -> maybe Agent 5
+        # If intake complete: run Agent 2-5
         if agent1_output["ready_for_next_agent"] is True:
-            # Pass full merged notes
             full_notes_for_next = dict(clinical_notes)
-
-            # Remove internal tracking fields
             full_notes_for_next.pop("_round_count", None)
             full_notes_for_next.pop("_asked_keys", None)
 
-            # Agent 2: Risk hypothesis (LLM)
+            # Agent 2
             risk = await run_risk_agent(
                 identified_symptoms=agent1_output["identified_symptoms"],
                 clinical_notes=full_notes_for_next
             )
             risk_data = risk.model_dump()
 
-            # Agent 3: Risk scoring & safety (rules)
+            # Agent 3
             risk_scoring = await run_risk_scoring_agent(
                 risk_output=risk_data,
                 clinical_notes=full_notes_for_next
             )
             risk_scoring_data = risk_scoring.model_dump()
 
-            # Agent 4: Specialist routing (LLM)
+            # Agent 4
             routing = await run_specialist_routing_agent(
                 identified_symptoms=agent1_output["identified_symptoms"],
                 clinical_notes=full_notes_for_next,
@@ -237,23 +227,34 @@ async def triage_continue(payload: ContinueTriageRequest):
             )
             routing_data = routing.model_dump()
 
-            # Decide next step using Agent 3
-            is_high = (risk_scoring.risk_level == "HIGH")
-            flags = (risk_scoring.safety_flags or [])
-            has_immediate_flag = "requires_immediate_attention" in flags
+            # Decide next step (Agent 3 governs)
+            is_high = str(risk_scoring_data.get("risk_level", "")).upper() == "HIGH"
+            flags = risk_scoring_data.get("safety_flags", []) or []
+            has_immediate_flag = any(str(f).lower() == "requires_immediate_attention" for f in flags)
+
             next_step = "human_escalation" if (is_high or has_immediate_flag) else "specialist_routing"
 
-            # Agent 5: Human escalation (ONLY if needed)
+            # Agent 5 (only if needed)
             escalation_data = None
             if next_step == "human_escalation":
-                escalation = await run_human_escalation_agent(
-                    session_id=payload.session_id,
-                    identified_symptoms=agent1_output["identified_symptoms"],
-                    clinical_notes=full_notes_for_next,
-                    risk_hypothesis=risk_data,
-                    risk_scoring=risk_scoring_data,
-                    routing_hint=routing_data,
-                )
+                # Some implementations don’t accept session_id; try safely.
+                try:
+                    escalation = await run_human_escalation_agent(
+                        session_id=payload.session_id,
+                        identified_symptoms=agent1_output["identified_symptoms"],
+                        clinical_notes=full_notes_for_next,
+                        risk_hypothesis=risk_data,
+                        risk_scoring=risk_scoring_data,
+                        routing_hint=routing_data,
+                    )
+                except TypeError:
+                    escalation = await run_human_escalation_agent(
+                        identified_symptoms=agent1_output["identified_symptoms"],
+                        clinical_notes=full_notes_for_next,
+                        risk_hypothesis=risk_data,
+                        risk_scoring=risk_scoring_data,
+                        routing_hint=routing_data,
+                    )
                 escalation_data = escalation.model_dump()
 
             # Store bundle output
@@ -269,7 +270,6 @@ async def triage_continue(payload: ContinueTriageRequest):
                 }
             )
 
-            # Response
             resp = {
                 "session_id": payload.session_id,
                 "passed_to_agent2": True,
