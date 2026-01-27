@@ -14,7 +14,7 @@ async def main():
     # MCP server params (run your local MCP server file)
     server_params = StdioServerParameters(
         command="python",
-        args=["doc_uploader/mcp_server.py"],
+        args=["mcp_server.py"],
     )
 
     async with stdio_client(server_params) as (reader, writer):
