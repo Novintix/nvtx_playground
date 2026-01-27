@@ -12,7 +12,7 @@ load_dotenv()
 # Allow overriding the model without code changes (e.g., if Groq deprecates a model).
 # Groq currently supports newer Llama 3.1 models; keep a safe default.
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="llama-3.3-70b-versatile",
     temperature=0
 )
 
