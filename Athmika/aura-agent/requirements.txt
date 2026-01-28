@@ -1,0 +1,10 @@
+langchain
+langchain-google-genai
+langchain-community
+langgraph
+streamlit
+chromadb
+pypdf
+python-dotenv
+tiktoken
+faiss-cpu
