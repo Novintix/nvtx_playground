@@ -1,0 +1,300 @@
+2026-01-23 18:19:49,502 - __main__ - INFO - Starting RAG API server
+2026-01-23 18:19:49,502 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-23 18:19:49,503 - document_parser - INFO - DocumentParser initialized
+2026-01-23 18:19:49,503 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-23 18:19:49,503 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-23 18:19:49,504 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-23 18:19:49,504 - vector_store - INFO - VectorStore initialized: main
+2026-01-23 18:19:49,505 - reranker - INFO - Reranker initialized
+2026-01-23 18:19:49,505 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-23 18:19:49,506 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-23 18:19:49,506 - rag_pipeline - INFO - Loading existing index: main
+2026-01-23 18:19:49,506 - vector_store - INFO - Loading index: main
+2026-01-23 18:19:49,506 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-23 18:19:49,507 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-23 18:19:49,508 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 10:16:29,676 - __main__ - INFO - Starting RAG API server
+2026-01-27 10:16:29,679 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 10:16:29,679 - document_parser - INFO - DocumentParser initialized
+2026-01-27 10:16:29,680 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 10:16:29,680 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-27 10:16:29,681 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 10:16:29,681 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 10:16:29,682 - reranker - INFO - Reranker initialized
+2026-01-27 10:16:29,683 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 10:16:29,683 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 10:16:29,684 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 10:16:29,684 - vector_store - INFO - Loading index: main
+2026-01-27 10:16:29,684 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 10:16:29,685 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 10:16:29,686 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 10:35:30,253 - __main__ - INFO - Starting RAG API server
+2026-01-27 10:35:30,282 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 10:35:30,283 - document_parser - INFO - DocumentParser initialized
+2026-01-27 10:35:30,284 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 10:35:30,285 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-27 10:35:30,285 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 10:35:30,286 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 10:35:30,286 - reranker - INFO - Reranker initialized
+2026-01-27 10:35:30,286 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 10:35:30,287 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 10:35:30,287 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 10:35:30,287 - vector_store - INFO - Loading index: main
+2026-01-27 10:35:30,287 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 10:35:30,346 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 10:35:30,347 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 11:08:38,450 - __main__ - INFO - Starting RAG API server
+2026-01-27 11:08:38,456 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 11:08:38,457 - document_parser - INFO - DocumentParser initialized
+2026-01-27 11:08:38,458 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 11:08:38,459 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-27 11:08:38,459 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 11:08:38,460 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 11:08:38,461 - reranker - INFO - Reranker initialized
+2026-01-27 11:08:38,462 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 11:08:38,463 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 11:08:38,463 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 11:08:38,464 - vector_store - INFO - Loading index: main
+2026-01-27 11:08:38,465 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:08:38,473 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:08:38,474 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 11:19:06,550 - __main__ - INFO - Starting RAG API server
+2026-01-27 11:19:06,559 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 11:19:06,560 - document_parser - INFO - DocumentParser initialized
+2026-01-27 11:19:06,560 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 11:19:06,562 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-27 11:19:06,599 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 11:19:06,599 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 11:19:06,600 - reranker - INFO - Reranker initialized
+2026-01-27 11:19:06,600 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 11:19:06,601 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 11:19:06,601 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 11:19:06,601 - vector_store - INFO - Loading index: main
+2026-01-27 11:19:06,602 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:19:06,682 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:19:06,683 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 11:24:40,939 - __main__ - INFO - Starting RAG API server
+2026-01-27 11:24:40,944 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 11:24:40,944 - document_parser - INFO - DocumentParser initialized
+2026-01-27 11:24:40,945 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 11:24:40,946 - chunker - INFO - AdvancedChunker initialized with semantic chunking: True
+2026-01-27 11:24:40,947 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 11:24:40,948 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 11:24:40,949 - reranker - INFO - Reranker initialized
+2026-01-27 11:24:40,950 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 11:24:40,951 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 11:24:40,951 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 11:24:40,952 - vector_store - INFO - Loading index: main
+2026-01-27 11:24:40,952 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:24:40,964 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:24:40,965 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 11:24:58,358 - __main__ - INFO - Received document upload: Software_development_procedures.pdf
+2026-01-27 11:24:58,497 - __main__ - INFO - File saved to: uploads\Software_development_procedures.pdf
+2026-01-27 11:24:58,497 - rag_pipeline - INFO - Starting document ingestion: uploads\Software_development_procedures.pdf
+2026-01-27 11:24:58,498 - document_parser - INFO - Starting PDF parsing: uploads\Software_development_procedures.pdf
+2026-01-27 11:25:00,032 - document_parser - INFO - Successfully parsed PDF: 5 pages, 3453 characters
+2026-01-27 11:25:00,071 - chunker - INFO - Starting chunking process for text of length: 3145
+2026-01-27 11:25:09,234 - chunker - INFO - Created 0 chunks
+2026-01-27 11:25:09,235 - embedder - INFO - Generating embeddings for 0 chunks
+2026-01-27 11:25:09,235 - embedder - INFO - Successfully generated embeddings with shape: (0,)
+2026-01-27 11:25:09,235 - vector_store - INFO - Creating FAISS index with 0 vectors
+2026-01-27 11:25:09,236 - vector_store - ERROR - Index creation failed: tuple index out of range
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 50, in create_index
+    self.dimension = embeddings.shape[1]
+                     ~~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range
+2026-01-27 11:25:09,237 - rag_pipeline - ERROR - Document ingestion failed: tuple index out of range
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 88, in ingest_document
+    self.vector_store.create_index(embeddings, chunks)
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 50, in create_index
+    self.dimension = embeddings.shape[1]
+                     ~~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range
+2026-01-27 11:25:09,239 - __main__ - ERROR - Document ingestion failed: tuple index out of range
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\api.py", line 76, in ingest_document
+    stats = pipeline.ingest_document(str(file_path), save_index=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 88, in ingest_document
+    self.vector_store.create_index(embeddings, chunks)
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 50, in create_index
+    self.dimension = embeddings.shape[1]
+                     ~~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range
+2026-01-27 11:27:43,084 - __main__ - INFO - Starting RAG API server
+2026-01-27 11:27:43,084 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 11:27:43,085 - document_parser - INFO - DocumentParser initialized
+2026-01-27 11:27:43,086 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 11:27:43,087 - chunker - INFO - AdvancedChunker initialized with semantic chunking: False
+2026-01-27 11:27:43,088 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 11:27:43,090 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 11:27:43,091 - reranker - INFO - Reranker initialized
+2026-01-27 11:27:43,092 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 11:27:43,093 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 11:27:43,093 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 11:27:43,094 - vector_store - INFO - Loading index: main
+2026-01-27 11:27:43,094 - vector_store - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:27:43,096 - rag_pipeline - ERROR - Failed to load index: Index files not found: main
+Traceback (most recent call last):
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\rag_pipeline.py", line 166, in load_existing_index
+    self.vector_store.load_index()
+  File "E:\cit assignments\semester 10\NOVINTIX\learning\RAG\vector_store.py", line 166, in load_index
+    raise FileNotFoundError(f"Index files not found: {self.index_name}")
+FileNotFoundError: Index files not found: main
+2026-01-27 11:27:43,098 - __main__ - INFO - No existing index found: Index files not found: main
+2026-01-27 11:27:49,920 - __main__ - INFO - Received document upload: Software_development_procedures.pdf
+2026-01-27 11:27:49,931 - __main__ - INFO - File saved to: uploads\Software_development_procedures.pdf
+2026-01-27 11:27:49,932 - rag_pipeline - INFO - Starting document ingestion: uploads\Software_development_procedures.pdf
+2026-01-27 11:27:49,932 - document_parser - INFO - Starting PDF parsing: uploads\Software_development_procedures.pdf
+2026-01-27 11:27:50,823 - document_parser - INFO - Successfully parsed PDF: 5 pages, 3453 characters
+2026-01-27 11:27:50,825 - chunker - INFO - Starting chunking process for text of length: 3145
+2026-01-27 11:27:50,826 - chunker - INFO - Created 1 chunks
+2026-01-27 11:27:50,826 - embedder - INFO - Generating embeddings for 1 chunks
+2026-01-27 11:27:51,491 - embedder - INFO - Successfully generated embeddings with shape: (1, 768)
+2026-01-27 11:27:51,491 - vector_store - INFO - Creating FAISS index with 1 vectors
+2026-01-27 11:27:51,695 - vector_store - INFO - FAISS index created successfully. Total vectors: 1
+2026-01-27 11:27:51,696 - vector_store - INFO - Saving index: main
+2026-01-27 11:27:51,756 - vector_store - INFO - Index saved successfully to indexes
+2026-01-27 11:27:51,757 - rag_pipeline - INFO - Document ingestion complete: {'file_name': 'Software_development_procedures.pdf', 'total_pages': 5, 'total_chunks': 1, 'embedding_dimension': 768, 'index_saved': True}
+2026-01-27 13:15:14,831 - __main__ - INFO - Starting RAG API server
+2026-01-27 13:15:14,842 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 13:15:14,843 - document_parser - INFO - DocumentParser initialized
+2026-01-27 13:15:14,844 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 13:15:14,844 - chunker - INFO - AdvancedChunker initialized with semantic chunking: False
+2026-01-27 13:15:14,845 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 13:15:14,845 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 13:15:14,846 - reranker - INFO - Reranker initialized
+2026-01-27 13:15:14,847 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 13:15:14,848 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 13:15:14,848 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 13:15:14,848 - vector_store - INFO - Loading index: main
+2026-01-27 13:15:14,864 - vector_store - INFO - Index loaded successfully. Total vectors: 1
+2026-01-27 13:15:14,864 - rag_pipeline - INFO - Index loaded successfully
+2026-01-27 13:15:14,864 - __main__ - INFO - Loaded existing index
+2026-01-27 13:24:37,841 - __main__ - INFO - Received query: What is the main topic
+2026-01-27 13:24:37,841 - rag_pipeline - INFO - Processing query: What is the main topic
+2026-01-27 13:24:38,986 - vector_store - INFO - Retrieved 5 chunks from index
+2026-01-27 13:24:38,986 - reranker - INFO - Re-ranking 5 chunks for query
+2026-01-27 13:24:49,186 - reranker - INFO - Re-ranking complete. Returning top 3 chunks
+2026-01-27 13:24:49,186 - llm_handler - INFO - Generating answer for query: What is the main topic...
+2026-01-27 13:24:52,925 - llm_handler - INFO - Answer generated successfully
+2026-01-27 13:24:52,925 - rag_pipeline - INFO - Query processing complete
+2026-01-27 14:56:54,057 - __main__ - INFO - Starting RAG API server
+2026-01-27 14:56:54,068 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 14:56:54,068 - document_parser - INFO - DocumentParser initialized
+2026-01-27 14:56:54,069 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 14:56:54,070 - chunker - INFO - AdvancedChunker initialized with semantic chunking: False
+2026-01-27 14:56:54,070 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 14:56:54,071 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 14:56:54,071 - reranker - INFO - Reranker initialized
+2026-01-27 14:56:54,072 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 14:56:54,072 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 14:56:54,088 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 14:56:54,088 - vector_store - INFO - Loading index: main
+2026-01-27 14:56:54,170 - vector_store - INFO - Index loaded successfully. Total vectors: 1
+2026-01-27 14:56:54,170 - rag_pipeline - INFO - Index loaded successfully
+2026-01-27 14:56:54,171 - __main__ - INFO - Loaded existing index
+2026-01-27 14:57:26,176 - __main__ - INFO - Received query: What is the main topic
+2026-01-27 14:57:26,177 - rag_pipeline - INFO - Processing query: What is the main topic
+2026-01-27 14:57:27,871 - vector_store - INFO - Retrieved 5 chunks from index
+2026-01-27 14:57:27,871 - reranker - INFO - Re-ranking 5 chunks for query
+2026-01-27 14:57:37,168 - reranker - INFO - Re-ranking complete. Returning top 3 chunks
+2026-01-27 14:57:37,169 - llm_handler - INFO - Generating answer for query: What is the main topic...
+2026-01-27 14:57:40,411 - llm_handler - INFO - Answer generated successfully
+2026-01-27 14:57:40,411 - rag_pipeline - INFO - Query processing complete
+2026-01-27 15:56:23,243 - __main__ - INFO - Starting RAG API server
+2026-01-27 15:56:23,265 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 15:56:23,266 - document_parser - INFO - DocumentParser initialized
+2026-01-27 15:56:23,267 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 15:56:23,268 - chunker - INFO - AdvancedChunker initialized with semantic chunking: False
+2026-01-27 15:56:23,269 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 15:56:23,270 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 15:56:23,271 - reranker - INFO - Reranker initialized
+2026-01-27 15:56:23,271 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 15:56:23,272 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 15:56:23,272 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 15:56:23,272 - vector_store - INFO - Loading index: main
+2026-01-27 15:56:23,305 - vector_store - INFO - Index loaded successfully. Total vectors: 1
+2026-01-27 15:56:23,305 - rag_pipeline - INFO - Index loaded successfully
+2026-01-27 15:56:23,305 - __main__ - INFO - Loaded existing index
+2026-01-27 17:16:35,463 - __main__ - INFO - Starting RAG API server
+2026-01-27 17:16:35,487 - rag_pipeline - INFO - Initializing RAG pipeline: main
+2026-01-27 17:16:35,488 - document_parser - INFO - DocumentParser initialized
+2026-01-27 17:16:35,489 - preprocessor - INFO - TextPreprocessor initialized
+2026-01-27 17:16:35,490 - chunker - INFO - AdvancedChunker initialized with semantic chunking: False
+2026-01-27 17:16:35,490 - embedder - INFO - Embedder initialized with model: text-embedding-004
+2026-01-27 17:16:35,490 - vector_store - INFO - VectorStore initialized: main
+2026-01-27 17:16:35,490 - reranker - INFO - Reranker initialized
+2026-01-27 17:16:35,491 - llm_handler - INFO - LLMHandler initialized with model: gemini-flash-latest
+2026-01-27 17:16:35,491 - rag_pipeline - INFO - RAG pipeline initialized successfully
+2026-01-27 17:16:35,491 - rag_pipeline - INFO - Loading existing index: main
+2026-01-27 17:16:35,491 - vector_store - INFO - Loading index: main
+2026-01-27 17:16:35,714 - vector_store - INFO - Index loaded successfully. Total vectors: 1
+2026-01-27 17:16:35,715 - rag_pipeline - INFO - Index loaded successfully
+2026-01-27 17:16:35,715 - __main__ - INFO - Loaded existing index

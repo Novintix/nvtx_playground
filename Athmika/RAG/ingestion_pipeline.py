@@ -1,7 +1,7 @@
 import os
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
-from langchain_text_splitters import CharacterTextSplitter
-from sentence_transformers import SentenceTransformer
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
 
@@ -39,9 +39,9 @@ def load_documnets(docs_path):
 def split_documents(documents, chunk_size=1000, chunk_overlap=0):
     """Split documents into smaller chunks"""
     print("Splitting documents into chunks...")
-    text_splitter = CharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
+        chunk_overlap=150,
         separator="\n"
     )
     
@@ -64,7 +64,7 @@ def split_documents(documents, chunk_size=1000, chunk_overlap=0):
 def create_vector_store(chunks, persist_directory="db/chroma_db"):
     """Create and persists ChromaDB vectore store"""
     print("Creating embeddings and storing in ChromaDB")
-    embedding_model = SentenceTransformer(model_name="all-MiniLM-L6-v2")
+    embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     print("--- Creating vector store ---")
     vector_store = Chroma.from_documents(
@@ -85,6 +85,20 @@ def main():
     documents = load_documnets(docs_path="docs")
     chunks = split_documents(documents)
     vector_store = create_vector_store(chunks)
+
+    print("\nTesting similarity search...\n")
+
+    docs = vector_store.similarity_search(
+        "company policy",
+        k=3
+    )
+
+    for d in docs:
+        print("\n---")
+        print("Content:")
+        print(d.page_content)
+        print("Metadata:")
+        print(d.metadata)
 
 
 if __name__ == "__main__":

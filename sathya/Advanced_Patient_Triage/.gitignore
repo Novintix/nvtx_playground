@@ -1,4 +1,18 @@
-venv/
+# env
+.env
+.env.*
+*.env
+
+# python
 __pycache__/
 *.pyc
-.env
+.venv/
+venv/
+.envrc
+
+# logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
