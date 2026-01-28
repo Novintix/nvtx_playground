@@ -1,0 +1,48 @@
+# -----------------------------
+# Core LLM & RAG Framework
+# -----------------------------
+langchain 
+langgraph
+
+# -----------------------------
+# Embeddings (PubMedBERT)
+# -----------------------------
+transformers 
+sentence-transformers 
+torch
+
+# -----------------------------
+# Vector Database
+# -----------------------------
+faiss-cpu
+
+# -----------------------------
+# Biomedical Literature Fetching
+# -----------------------------
+biopython
+
+# -----------------------------
+# Database & Storage
+# -----------------------------
+sqlite-utils
+
+# -----------------------------
+# Data Processing
+# -----------------------------
+numpy
+pandas 
+
+# -----------------------------
+# Visualization
+# -----------------------------
+matplotlib
+seaborn
+
+# -----------------------------
+# Utilities
+# -----------------------------
+tqdm
+python-dotenv
+pydantic
+rich
+accelerate
