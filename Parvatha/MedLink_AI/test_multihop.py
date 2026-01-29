@@ -1,21 +1,16 @@
 # test_multihop.py
-from multihop_graph import build_multihop_graph
 
-query = "What are the mechanisms linking insulin resistance and lifestyle factors?"
+from MedLink_AI.multihop_rag import MultiHopRAG
 
-graph = build_multihop_graph()
+query = "How do lifestyle factors influence insulin resistance through inflammatory pathways?"
 
-initial_state = {
-    "query": query,
-    "original_query": query,
-    "hop": 1,
-    "retrieved_papers": [],
-    "distances": [],
-    "final_papers": [],
-    "answer": ""
-}
+rag = MultiHopRAG()
 
-final_state = graph.invoke(initial_state)
+answer, papers = rag.run(query)
 
 print("\n🧠 MULTI-HOP ANSWER:\n")
-print(final_state["answer"])
+print(answer)
+
+print("\n📚 Evidence papers:\n")
+for i, p in enumerate(papers[:5], start=1):
+    print(f"{i}. {p['title']}")

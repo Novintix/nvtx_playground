@@ -4,7 +4,7 @@ from embed_store import PubMedEmbeddingStore
 from reranker import rerank
 from rag_generator import MedicalRAGGenerator
 
-query = "What are the main mechanisms linking insulin resistance and lifestyle factors?"
+query = "Role of sleep deprivation in metabolic disorders"
 
 # Step 1: Fetch
 papers = fetch_papers(query, 15)
