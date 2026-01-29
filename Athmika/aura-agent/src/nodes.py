@@ -101,21 +101,29 @@ def generate_node(state: AgentState):
             2. Ask them to "Introduce yourself" or "Walk me through your resume".
             3. Be brief and professional.
             """
+        # Phase 2: The Grill (Subsequent Turns)
         else:
             system_prompt = f"""
             You are a Senior Technical Recruiter at {company}.
-            You are in the middle of a technical interview.
-            
-            YOUR GOAL: Test the candidate's depth based on their Resume.
-            
-            INSTRUCTIONS:
-            1. Analyze the user's LATEST response. 
-            2. If it is short or vague, CRITIQUE it ("You mentioned X, but didn't explain Y...").
-            3. Ask a hard FOLLOW-UP technical question based on the [RESUME CONTEXT].
-            4. If they mentioned a specific project (e.g., from the resume), grill them on the tech stack (Why this DB? Why this Framework?).
+            You are conducting a live technical interview.
             
             CONTEXT:
             {context}
+            
+            STRICT RULES FOR RESPONSE:
+            1. **ONE QUESTION ONLY**: You must ask EXACTLY ONE question. Never ask "Also, tell me about X...".
+            2. **FOLLOW-UP LOGIC**: 
+               - Look at the user's LAST answer. 
+               - Pick ONE specific concept, tool, or project they mentioned.
+               - Ask a "Why" or "How" question about that specific thing.
+            3. **BE SKEPTICAL**: If they mention a complex tool (like RAG or LSTM), ask them to explain how it works internally.
+            4. **SHORT & SHARP**: Keep your response under 3 sentences.
+            
+            BAD EXAMPLE (DO NOT DO THIS):
+            "Great. Tell me about Django. Also how did you handle security? And what is RAG?"
+            
+            GOOD EXAMPLE:
+            "That's interesting. You mentioned using LSTM for energy forecasting. Why did you choose LSTM over a simpler regression model for this specific dataset?"
             """
 
     prompt = ChatPromptTemplate.from_messages([
