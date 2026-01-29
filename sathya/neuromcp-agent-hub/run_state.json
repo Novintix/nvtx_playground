@@ -1,0 +1,175 @@
+{
+  "user_request": "Schedule meeting tomorrow at 4pm and post in Slack",
+  "logs": [
+    {
+      "agent": "tool_discovery",
+      "msg": "Discovered 2 tools."
+    },
+    {
+      "agent": "planner",
+      "msg": "Groq failed (Planner failed after retries: 'input_schema'). Falling back to offline planner."
+    },
+    {
+      "agent": "validator",
+      "msg": "Running neurosymbolic validation rules..."
+    },
+    {
+      "agent": "validator",
+      "msg": "Validation passed. No approvals needed."
+    },
+    {
+      "agent": "executor",
+      "msg": "Executor started..."
+    },
+    {
+      "agent": "executor",
+      "msg": "Execution completed \u2705"
+    }
+  ],
+  "available_tools": [
+    {
+      "name": "calendar.create_event",
+      "description": "Create a calendar event",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "start_time",
+          "end_time"
+        ]
+      }
+    },
+    {
+      "name": "slack.post_message",
+      "description": "Post a message to Slack",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "text"
+        ]
+      }
+    }
+  ],
+  "tools": [
+    {
+      "name": "calendar.create_event",
+      "description": "Create a calendar event",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "start_time",
+          "end_time"
+        ]
+      }
+    },
+    {
+      "name": "slack.post_message",
+      "description": "Post a message to Slack",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "text"
+        ]
+      }
+    }
+  ],
+  "plan": {
+    "goal": "Schedule meeting tomorrow at 4pm and post in Slack",
+    "steps": [
+      {
+        "id": "S1",
+        "action": "Create meeting event",
+        "tool": "calendar.create_event",
+        "input": {
+          "title": "Meeting",
+          "start_time": "2026-01-30T16:00:00+05:30",
+          "end_time": "2026-01-30T17:00:00+05:30",
+          "timezone": "Asia/Kolkata"
+        },
+        "depends_on": [],
+        "expected_output": "Event ID"
+      },
+      {
+        "id": "S2",
+        "action": "Post meeting details in Slack",
+        "tool": "slack.post_message",
+        "input": {
+          "channel": "#general",
+          "text": "Meeting scheduled for tomorrow at 4pm"
+        },
+        "depends_on": [
+          "S1"
+        ],
+        "expected_output": "Message ID"
+      }
+    ]
+  },
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": []
+  },
+  "pending_approvals": [],
+  "status": "COMPLETED",
+  "execution_results": {
+    "S1": {
+      "ok": true,
+      "mock": true,
+      "event_id": "mock-event-2026-01-29T04:21:42.031970",
+      "input": {}
+    },
+    "S2": {
+      "ok": true,
+      "mock": true,
+      "message_id": "mock-msg-2026-01-29T04:21:42.031970",
+      "input": {}
+    }
+  }
+}

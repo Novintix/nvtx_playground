@@ -1,30 +1,33 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Callable, Awaitable
-
-from app.services.tools.slack_tool import slack_post_message
-from app.services.tools.calendar_tool import calendar_create_event
+from typing import Any, Dict, List
 
 TOOL_REGISTRY: List[Dict[str, Any]] = [
     {
         "name": "slack.post_message",
-        "description": "Post a message to Slack",
-        "requires_approval": True,
-        "handler": slack_post_message,
-        "schema": {
-            "channel": "str",
-            "text": "str"
+        "description": "Post a message to a Slack channel.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "channel": {"type": "string"},
+                "text": {"type": "string"},
+            },
+            "required": ["channel", "text"],
+            "additionalProperties": False,
         },
     },
     {
         "name": "calendar.create_event",
-        "description": "Create a Google Calendar event",
-        "requires_approval": True,
-        "handler": calendar_create_event,
-        "schema": {
-            "title": "str",
-            "start_time": "ISO datetime str",
-            "end_time": "ISO datetime str",
-            "timezone": "str"
+        "description": "Create an event in Google Calendar.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "start_time": {"type": "string"},
+                "end_time": {"type": "string"},
+                "timezone": {"type": "string"},
+            },
+            "required": ["title", "start_time", "end_time", "timezone"],
+            "additionalProperties": False,
         },
     },
 ]

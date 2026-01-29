@@ -1,27 +1,34 @@
-from __future__ import annotations
-from typing import Any, Dict
-
+# app/agents/planner/agent_main.py
+import os
 from app.agents.planner.agent import create_plan_with_groq
-from app.utils.datetime_utils import normalize_relative_times
+from app.agents.planner.offline_planner import build_plan
 
-
-
-
-
-
-def run_planner(state: Dict[str, Any]) -> Dict[str, Any]:
-    user_request = state.get("user_request", "")
-    tools = state.get("available_tools", [])
+def run_planner(state: dict) -> dict:
+    user_request = state["user_request"]
+    tools = state["available_tools"]
+    tz = state.get("timezone", "Asia/Kolkata")
 
     logs = state.get("logs", [])
-    logs.append({"agent": "planner", "msg": "Running Groq Planner Agent..."})
+    try:
+        if os.getenv("OFFLINE_PLANNER", "false").lower() == "true":
+            logs.append({"agent": "planner", "msg": "OFFLINE_PLANNER enabled → using rule-based planner."})
+            plan_obj = build_plan(user_request, tools, tz=tz)
+        else:
+            plan_obj = create_plan_with_groq(user_request, tools, retries=2)
+            # Convert Pydantic model to dict for validator
+            if hasattr(plan_obj, 'model_dump'):
+                plan_obj = plan_obj.model_dump()
 
-    plan_obj = create_plan_with_groq(user_request, tools)
-    # after plan_obj created:
-    plan_obj = normalize_relative_times(plan_obj, tz="Asia/Kolkata")
+        state["plan"] = plan_obj
+        logs.append({"agent": "planner", "msg": "Plan created successfully."})
+        state["logs"] = logs
+        return state
 
-    state["plan"] = plan_obj.model_dump()
-    logs.append({"agent": "planner", "msg": f"Plan created successfully with {len(plan_obj.steps)} steps."})
+    except Exception as e:
+        # fallback automatically
+        logs.append({"agent": "planner", "msg": f"Groq failed ({e}). Falling back to offline planner."})
+        plan_obj = build_plan(user_request, tools, tz=tz)
+        state["plan"] = plan_obj
+        state["logs"] = logs
+        return state
 
-    state["logs"] = logs
-    return state

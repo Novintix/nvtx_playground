@@ -1,25 +1,46 @@
+# app/routes/mcp_api.py
+import os
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
-from typing import Any, Dict, List
+from pydantic import BaseModel
+from typing import Any, Dict
 
-from app.services.mcp.tool_registry import TOOL_REGISTRY
+router = APIRouter()
 
-router = APIRouter(prefix="/mcp", tags=["MCP"])
+class MCPCallRequest(BaseModel):
+    name: str
+    args: Dict[str, Any] = {}
 
+def _is_mock() -> bool:
+    return os.getenv("MOCK_TOOLS", "false").lower() == "true"
 
-@router.get("/tools")
-def list_tools() -> Dict[str, Any]:
-    return {"tools": TOOL_REGISTRY}
+@router.post("/mcp/call")
+async def call_tool(req: MCPCallRequest):
+    # ✅ HARD BYPASS (no Mongo, no token_store, no tool modules)
+    if _is_mock():
+        if req.name == "calendar.create_event":
+            return {
+                "ok": True,
+                "mock": True,
+                "event_id": f"mock-event-{datetime.utcnow().isoformat()}",
+                "input": req.args,
+            }
+        if req.name == "slack.post_message":
+            return {
+                "ok": True,
+                "mock": True,
+                "message_id": f"mock-msg-{datetime.utcnow().isoformat()}",
+                "input": req.args,
+            }
+        raise HTTPException(status_code=404, detail=f"Unknown tool: {req.name}")
 
-
-@router.post("/call")
-async def call_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
-    tool_name = payload.get("tool")
-    args = payload.get("args", {})
-
-    tool = next((t for t in TOOL_REGISTRY if t["name"] == tool_name), None)
-    if not tool:
-        raise HTTPException(status_code=404, detail=f"Tool not found: {tool_name}")
-
-    handler = tool["handler"]
-    out = await handler(args)  # handler must be async
-    return out
+    # 🔻 normal flow (real tools)
+    try:
+        # your existing handler lookup
+        handler = TOOL_REGISTRY[req.name]  # whatever you use
+        out = await handler(req.args)
+        return out
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown tool: {req.name}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

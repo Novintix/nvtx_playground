@@ -1,17 +1,41 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from typing import Any, Dict, List, Set, Tuple
 
 from jsonschema import validate as jsonschema_validate
 from jsonschema.exceptions import ValidationError
 
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from app.config.settings import get_settings
 from app.agents.planner.prompt import SYSTEM_PROMPT
 from app.agents.planner.schema import Plan
+
+
+# ===============================
+# Time helpers (IST by default)
+# ===============================
+
+DEFAULT_TZ = "Asia/Kolkata"
+
+def now_in_tz(tz: str = DEFAULT_TZ) -> datetime:
+    return datetime.now(ZoneInfo(tz))
+
+def today_context(tz: str = DEFAULT_TZ) -> Dict[str, str]:
+    """
+    Give the LLM a stable "today" anchor.
+    """
+    dt = now_in_tz(tz)
+    return {
+        "timezone": tz,
+        "today_date": dt.date().isoformat(),          # e.g. 2026-01-29
+        "now_iso": dt.isoformat(),                    # e.g. 2026-01-29T12:10:00+05:30
+        "weekday": dt.strftime("%A"),                 # e.g. Thursday
+    }
 
 
 # ===============================
@@ -19,18 +43,14 @@ from app.agents.planner.schema import Plan
 # ===============================
 
 def extract_json(text: str) -> Dict[str, Any]:
-    """Strictly extract JSON from model output."""
     text = text.strip()
-
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         start = text.find("{")
         end = text.rfind("}")
-
         if start != -1 and end != -1:
-            return json.loads(text[start:end+1])
-
+            return json.loads(text[start:end + 1])
         raise ValueError("Model did not return valid JSON")
 
 
@@ -41,20 +61,16 @@ def extract_json(text: str) -> Dict[str, Any]:
 def build_tool_maps(tools: List[Dict[str, Any]]) -> Tuple[Set[str], Dict[str, Dict[str, Any]]]:
     allowed = set()
     tool_map = {}
-
     for t in tools:
         name = t["name"]
         allowed.add(name)
         tool_map[name] = t
-
     return allowed, tool_map
 
 
 def validate_dependencies(plan: Dict[str, Any]):
-    """Ensure depends_on references earlier steps only."""
     steps = plan["steps"]
     ids = [s["id"] for s in steps]
-
     index = {sid: i for i, sid in enumerate(ids)}
 
     for step in steps:
@@ -66,18 +82,17 @@ def validate_dependencies(plan: Dict[str, Any]):
 
 
 def validate_tool_inputs(plan: Dict[str, Any], available_tools: List[Dict[str, Any]]):
-    """Validate tool name + schema correctness."""
     allowed, tool_map = build_tool_maps(available_tools)
 
     for step in plan["steps"]:
-        tool = step["tool"]
-
+        tool = step.get("tool")
         if tool is None:
             continue
 
         if tool not in allowed:
             raise ValueError(f"Hallucinated tool: {tool}")
 
+        # IMPORTANT: expects "input_schema" key in tool registry
         schema = tool_map[tool]["input_schema"]
         data = step.get("input", {})
 
@@ -91,23 +106,18 @@ def validate_tool_inputs(plan: Dict[str, Any], available_tools: List[Dict[str, A
 # Groq LLM Loader
 # ===============================
 
-def make_llm() -> ChatOpenAI:
-    """Groq LLM configuration (Production Ready)."""
-    s = get_settings()
-    m = s.model
+def get_groq_llm() -> ChatGroq:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY missing in environment/.env")
 
-    return ChatOpenAI(
-        model=m.model,
-        api_key=s.groq_api_key,
-        base_url=m.base_url,
-
-        temperature=m.temperature,
-        max_tokens=m.max_tokens,
-        timeout=m.timeout_s,
-
-        top_p=m.top_p,
-        frequency_penalty=m.frequency_penalty,
-        presence_penalty=m.presence_penalty,
+    return ChatGroq(
+        api_key=api_key,
+        model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        temperature=0.2,
+        max_tokens=1024,
+        # NOTE: top_p warning is okay; it goes into model_kwargs
+        top_p=0.9,
     )
 
 
@@ -115,34 +125,47 @@ def make_llm() -> ChatOpenAI:
 # Planner Main Function
 # ===============================
 
-def create_plan_with_groq(user_request: str,
-                         available_tools: List[Dict[str, Any]],
-                         retries: int = 2) -> Plan:
+def create_plan_with_groq(
+    user_request: str,
+    available_tools: List[Dict[str, Any]],
+    retries: int = 2,
+    tz: str = DEFAULT_TZ,
+) -> Plan:
     """
     Generates a tool-valid plan using Groq LLM + strict guardrails.
+    Anchors the model with today's date/time in the selected timezone.
     """
 
-    llm = make_llm()
+    llm = get_groq_llm()
     error_msg = None
 
-    for attempt in range(retries + 1):
+    ctx = today_context(tz)
 
+    for attempt in range(retries + 1):
         prompt = f"""
+TODAY_CONTEXT (authoritative):
+- Today is {ctx["weekday"]}, date: {ctx["today_date"]}
+- Current time (ISO): {ctx["now_iso"]}
+- Use timezone: {ctx["timezone"]}
+
 User Request:
 {user_request}
 
-Available Tools:
+Available Tools (authoritative):
 {json.dumps(available_tools, indent=2)}
 
-Return ONLY JSON plan.
+Rules:
+- Return ONLY JSON (no markdown).
+- If user says "tomorrow", compute relative to TODAY_CONTEXT.
+- All datetimes MUST be ISO 8601 with offset (e.g. 2026-01-30T16:00:00+05:30).
 """
 
         if error_msg:
-            prompt += f"\nPrevious output failed:\n{error_msg}\nFix it."
+            prompt += f"\nPrevious output failed:\n{error_msg}\nFix it and return ONLY JSON."
 
         response = llm.invoke([
             SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=prompt)
+            HumanMessage(content=prompt),
         ])
 
         try:
