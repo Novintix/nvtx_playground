@@ -27,6 +27,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 2. SIDEBAR: THE CONTROL PANEL ---
+# --- 2. SIDEBAR ---
 with st.sidebar:
     st.title("AURA ✨")
     st.caption("Adaptive User Readiness Agent")
