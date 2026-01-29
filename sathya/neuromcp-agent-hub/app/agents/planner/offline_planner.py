@@ -7,54 +7,100 @@ import re
 
 def _parse_time_and_date(user_request: str, tz: str) -> tuple[str, str]:
     """
-    Parse date and time from user request
+    Enhanced date and time parsing from user request
     Returns (start_iso, end_iso)
     """
     z = ZoneInfo(tz)
     now = datetime.now(z)
     req = user_request.lower()
     
-    # Determine date (today vs tomorrow)
-    if "today" in req:
-        target_date = now.date()
-    elif "tomorrow" in req:
-        target_date = (now + timedelta(days=1)).date()
-    else:
-        # Default to tomorrow if no date specified
-        target_date = (now + timedelta(days=1)).date()
+    # Parse date - handle month names, specific dates
+    target_date = None
     
-    # Parse time (2pm, 3pm, 14:00, etc.)
+    # Month name patterns (feb 1, february 1st, 1 feb, etc.)
+    month_map = {
+        'jan': 1, 'january': 1,
+        'feb': 2, 'february': 2,
+        'mar': 3, 'march': 3,
+        'apr': 4, 'april': 4,
+        'may': 5,
+        'jun': 6, 'june': 6,
+        'jul': 7, 'july': 7,
+        'aug': 8, 'august': 8,
+        'sep': 9, 'sept': 9, 'september': 9,
+        'oct': 10, 'october': 10,
+        'nov': 11, 'november': 11,
+        'dec': 12, 'december': 12
+    }
+    
+    # Try patterns like "feb 1", "february 1st", "1 feb"
+    for month_name, month_num in month_map.items():
+        patterns = [
+            rf"{month_name}\s+(\d{{1,2}})(?:st|nd|rd|th)?",  # "feb 1" or "feb 1st"
+            rf"(\d{{1,2}})(?:st|nd|rd|th)?\s+{month_name}",  # "1 feb" or "1st feb"
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, req)
+            if match:
+                day = int(match.group(1))
+                year = now.year
+                # If the date has passed this year, assume next year
+                try:
+                    target_date = datetime(year, month_num, day, tzinfo=z).date()
+                    if target_date < now.date():
+                        target_date = datetime(year + 1, month_num, day, tzinfo=z).date()
+                except ValueError:
+                    # Invalid date like Feb 30
+                    continue
+                break
+        if target_date:
+            break
+    
+    # If no month pattern, check for "today" or "tomorrow"
+    if not target_date:
+        if "today" in req:
+            target_date = now.date()
+        elif "tomorrow" in req:
+            target_date = (now + timedelta(days=1)).date()
+        else:
+            # Default to tomorrow
+            target_date = (now + timedelta(days=1)).date()
+    
+    # Parse time with better patterns
     hour = 16  # default 4 PM
+    minute = 0
     
-    # Try to match patterns like "2 pm", "2pm", "14:00"
     time_patterns = [
-        r"(\d{1,2})\s*pm",           # "2 pm" or "2pm"
-        r"(\d{1,2})\s*am",           # "9 am" or "9am"
-        r"(\d{1,2}):(\d{2})\s*pm",   # "2:30 pm"
-        r"(\d{1,2}):(\d{2})\s*am",   # "9:30 am"
-        r"at\s*(\d{1,2})",           # "at 2" or "at 14"
+        (r"(\d{1,2})\.(\d{2})\s*pm", True),      # "9.00 pm"
+        (r"(\d{1,2}):(\d{2})\s*pm", True),       # "9:00 pm"
+        (r"(\d{1,2})\s*pm", True),               # "9 pm"
+        (r"(\d{1,2})\.(\d{2})\s*am", False),     # "9.00 am"
+        (r"(\d{1,2}):(\d{2})\s*am", False),      # "9:00 am"  
+        (r"(\d{1,2})\s*am", False),              # "9 am"
+        (r"at\s+(\d{1,2})", None),               # "at 9" (ambiguous)
     ]
     
-    for pattern in time_patterns:
+    for pattern, is_pm in time_patterns:
         match = re.search(pattern, req)
         if match:
-            hour_str = match.group(1)
-            hour = int(hour_str)
+            hour = int(match.group(1))
+            if len(match.groups()) > 1:
+                minute = int(match.group(2))
             
             # Convert PM/AM
-            if "pm" in pattern and hour < 12:
+            if is_pm is True and hour < 12:
                 hour += 12
-            elif "am" in pattern and hour == 12:
+            elif is_pm is False and hour == 12:
                 hour = 0
             break
     
     # Create datetime
-    start = datetime(target_date.year, target_date.month, target_date.day, hour, 0, tzinfo=z)
+    start = datetime(target_date.year, target_date.month, target_date.day, hour, minute, tzinfo=z)
     
-    # If the time has already passed today, schedule for tomorrow
+    # If scheduling for today and time has passed, move to tomorrow
     if target_date == now.date() and start < now:
         target_date = (now + timedelta(days=1)).date()
-        start = datetime(target_date.year, target_date.month, target_date.day, hour, 0, tzinfo=z)
+        start = datetime(target_date.year, target_date.month, target_date.day, hour, minute, tzinfo=z)
     
     end = start + timedelta(hours=1)
     
@@ -62,10 +108,7 @@ def _parse_time_and_date(user_request: str, tz: str) -> tuple[str, str]:
 
 
 def _extract_attendees(user_request: str) -> list[str]:
-    """
-    Extract email addresses from user request
-    """
-    # Pattern to match email addresses
+    """Extract email addresses from user request"""
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     emails = re.findall(email_pattern, user_request)
     return emails
@@ -73,27 +116,34 @@ def _extract_attendees(user_request: str) -> list[str]:
 
 def _extract_title(user_request: str) -> str:
     """
-    Try to extract a meaningful meeting title from the request
+    Extract meaningful meeting title from the request
     """
     req = user_request.lower()
     
-    # Look for patterns like "meeting with X"
+    # Remove common noise words
+    cleaned = re.sub(r'\b(mark|book|schedule|create|set up|setup|in|the|calender|calendar|like|with|at|on)\b', '', req, flags=re.IGNORECASE)
+    
+    # Look for patterns before date/time keywords
     patterns = [
-        r"meeting with ([^,\.]+)",
-        r"schedule ([^,\.]+?) at",
-        r"create ([^,\.]+?) event",
+        r"^(.*?)\s+(?:at|on|for|@)\s+\d",           # "presentation meeting at 9pm"
+        r"^(.*?)\s+(?:with|to)\s+[\w@.]+@",         # "project review with email@"
+        r"^(.*?)\s+(?:feb|jan|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)",  # "team sync feb 1"
     ]
     
     for pattern in patterns:
-        match = re.search(pattern, req)
+        match = re.search(pattern, cleaned, re.IGNORECASE)
         if match:
-            title = match.group(1).strip().title()
-            # Clean up common words
-            title = re.sub(r'\bat\s+\d', '', title).strip()
-            if title and len(title) > 2:
-                return title
+            title = match.group(1).strip()
+            # Clean up and capitalize
+            title = re.sub(r'\s+', ' ', title).strip()
+            if len(title) > 3:
+                return title.title()
     
-    # Default fallback
+    # Fallback: extract first few meaningful words
+    words = [w for w in cleaned.split() if len(w) > 2 and not w.startswith('@')]
+    if len(words) >= 2:
+        return ' '.join(words[:3]).title()
+    
     return "Meeting"
 
 
@@ -125,7 +175,6 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
     
     # Slack message reading and summarization
     if ("read" in req or "fetch" in req or "get" in req) and ("message" in req or "slack" in req) and ("summarize" in req or "summarise" in req or "summary" in req):
-        # Two-step: read messages then summarize
         plan["steps"].append({
             "id": "S1",
             "action": "Read Slack messages",
@@ -148,7 +197,7 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
         })
     
     # Calendar event creation
-    elif "meeting" in req or "schedule" in req or "event" in req:
+    elif "meeting" in req or "schedule" in req or "event" in req or "mark" in req or "book" in req:
         event_input = {
             "title": title,
             "start_time": start_iso,
@@ -156,7 +205,6 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
             "timezone": tz
         }
         
-        # Add attendees if found
         if attendees:
             event_input["attendees"] = attendees
         
@@ -170,19 +218,18 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
         })
     
     # Slack notification or standalone message
-    if ("slack" in req or "post" in req or "notify" in req) and not any(s.get("tool") == "calendar.create_event" for s in plan["steps"]):
-        # This is a standalone Slack message, extract the actual message
+    if ("slack" in req or "post" in req or "notify" in req or "send" in req) and not any(s.get("tool") == "calendar.create_event" for s in plan["steps"]):
+        # Standalone Slack message
         message_text = user_request
         
-        # Try to extract message content
         msg_patterns = [
-            r"message\s+['\"](.+?)['\"]",      # "message 'hi team'"
-            r"send\s+['\"](.+?)['\"]",         # "send 'hi team'"
-            r"post\s+['\"](.+?)['\"]",         # "post 'hi team'"
-            r"slack\s+['\"](.+?)['\"]",        # "slack 'hi team'"
-            r"like\s+(.+?)\s+to",              # "like hi team to"
-            r"say\s+(.+?)\s+to",               # "say hello to"
-            r"message\s+like\s+(.+)",          # "message like hi team"
+            r"message\s+['\"](.+?)['\"]",
+            r"send\s+['\"](.+?)['\"]",
+            r"post\s+['\"](.+?)['\"]",
+            r"slack\s+['\"](.+?)['\"]",
+            r"like\s+(.+?)\s+to",
+            r"say\s+(.+?)\s+to",
+            r"message\s+like\s+(.+)",
         ]
         
         for pattern in msg_patterns:
@@ -203,38 +250,24 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
             "expected_output": "Message ID"
         })
     elif ("slack" in req or "post" in req or "notify" in req) and any(s.get("tool") == "calendar.create_event" for s in plan["steps"]):
-        # This is a meeting notification (calendar + slack)
-        time_match = re.search(r"(\d{1,2})\s*(pm|am)", req)
-        time_str = time_match.group(0) if time_match else "soon"
-        
+        # Meeting notification
         plan["steps"].append({
             "id": "S2",
             "action": "Post meeting notification in Slack",
             "tool": "slack.post_message",
             "input": {
                 "channel": channel,
-                "text": f"Meeting '{title}' scheduled for {time_str}"
+                "text": f"📅 Meeting '{title}' scheduled"
             },
             "depends_on": ["S1"],
             "expected_output": "Message ID"
         })
     
-    # Fallback if nothing matched
+    # Fallback
     if not plan["steps"]:
-        # Extract the message content for Slack
         message_text = user_request
         
-        # Try to extract message after keywords like "send", "post", "message"
-        msg_patterns = [
-            r"send.*?message.*?[\"'](.+?)[\"']",  # "send message 'hi team'"
-            r"send.*?[\"'](.+?)[\"']",             # "send 'hi team'"  
-            r"post.*?[\"'](.+?)[\"']",             # "post 'hi team'"
-            r"slack.*?[\"'](.+?)[\"']",            # "slack 'hi team'"
-            r"message.*?like\s+(.+)",              # "message like hi team"
-            r"say\s+(.+)",                         # "say hi team"
-        ]
-        
-        for pattern in msg_patterns:
+        for pattern in [r"like\s+(.+)", r"say\s+(.+)"]:
             match = re.search(pattern, req)
             if match:
                 message_text = match.group(1).strip()
@@ -250,5 +283,3 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
         })
     
     return plan
-
-

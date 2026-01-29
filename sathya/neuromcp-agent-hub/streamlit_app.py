@@ -3,7 +3,7 @@ import requests
 import json
 from datetime import datetime
 
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="NeuroMCP Agent Hub",
     page_icon="🤖",
@@ -11,66 +11,223 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# API Base URL
 API_BASE_URL = "http://localhost:8000"
 
-# Custom CSS for better styling
+# Professional Dark Theme CSS
 st.markdown("""
 <style>
+    /* Main theme colors */
+    :root {
+        --primary-bg: #0A1628;
+        --secondary-bg: #1B2838;
+        --card-bg: #243447;
+        --accent-blue: #3B82F6;
+        --accent-purple: #8B5CF6;
+        --text-primary: #F8FAFC;
+        --text-secondary: #94A3B8;
+        --success: #10B981;
+        --error: #EF4444;
+        --border: #334155;
+    }
+    
+    /* Global styles */
+    .stApp {
+        background: linear-gradient(135deg, #0A1628 0%, #1B2838 100%);
+    }
+    
+    /* Header styling */
     .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        background: linear-gradient(120deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
         margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
     }
-    .status-badge {
-        padding: 0.25rem 0.75rem;
+    
+    .subtitle {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* Connection card */
+    .connection-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
         border-radius: 12px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        display: inline-block;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
     }
-    .status-connected {
-        background-color: #d4edda;
-        color: #155724;
+    
+    .connection-card:hover {
+        border-color: var(--accent-blue);
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
     }
-    .status-disconnected {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-    .log-item {
-        padding: 0.75rem;
-        margin: 0.5rem 0;
-        border-left: 3px solid #667eea;
-        background-color: #f8f9fa;
-        border-radius: 4px;
-    }
-    .stButton>button {
-        width: 100%;
-        background: linear-gradient(120deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
         padding: 0.5rem 1rem;
         border-radius: 8px;
+        font-size: 0.875rem;
         font-weight: 600;
     }
+    
+    .status-connected {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .status-disconnected {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--error);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Input field */
+    .stTextArea textarea {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        font-size: 1rem !important;
+        padding: 1rem !important;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: var(--accent-blue) !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    }
+    
+    /* Buttons */
+    .stButton>button {
+        background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 2rem !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+    }
+    
     .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    /* Results card */
+    .result-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .result-header {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+    
+    /* Log item */
+    .log-item {
+        background: var(--secondary-bg);
+        border-left: 3px solid var(--accent-blue);
+        padding: 0.75rem 1rem;
+        margin: 0.5rem 0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+    
+    .log-agent {
+        color: var(--accent-blue);
+        font-weight: 600;
+    }
+    
+    /* Success/Error messages */
+    .success-box {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        color: var(--success);
+        margin: 1rem 0;
+    }
+    
+    .error-box {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        color: var(--error);
+        margin: 1rem 0;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        background: var(--secondary-bg);
+        border-radius: 10px;
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: var(--text-secondary) !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 600 !important;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: var(--accent-blue) !important;
+        color: white !important;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: var(--card-bg) !important;
+        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: var(--secondary-bg);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--accent-blue);
+        border-radius: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<h1 class="main-header">🤖 NeuroMCP Agent Hub</h1>', unsafe_allow_html=True)
-st.markdown("**Intelligent AI Agent with Multi-Tool Integration**")
-st.markdown("---")
+col1, col2 = st.columns([6, 1])
+with col1:
+    st.markdown('<div class="main-header">🤖 NeuroMCP Agent Hub</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Enterprise AI Agent with Multi-Tool Integration</div>', unsafe_allow_html=True)
 
-# Sidebar - OAuth Connections
+# Sidebar - Connection Status
 with st.sidebar:
-    st.header("🔐 OAuth Connections")
+    st.markdown("### 🔐 Connection Status")
     
     # Check OAuth status
     try:
@@ -82,63 +239,74 @@ with st.sidebar:
         google_connected = False
         slack_connected = False
     
-    # Google OAuth
-    st.subheader("📅 Google Calendar")
-    if google_connected:
-        st.markdown('<span class="status-badge status-connected">✓ Connected</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="status-badge status-disconnected">✗ Not Connected</span>', unsafe_allow_html=True)
-        if st.button("Connect Google Calendar", key="google_connect"):
-            st.markdown(f"[Click here to connect]({API_BASE_URL}/auth/google/login)")
+    # Google Calendar
+    st.markdown(f"""
+    <div class="connection-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #F8FAFC; font-weight: 600;">📅 Google Calendar</span>
+            <span class="status-badge status-{'connected' if google_connected else 'disconnected'}">
+                {'✓ Connected' if google_connected else '✗ Disconnected'}
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if not google_connected:
+        if st.button("Connect Calendar", key="google_btn"):
+            st.markdown(f"[Click to Authorize →]({API_BASE_URL}/auth/google/login)")
+    
+    # Slack
+    st.markdown(f"""
+    <div class="connection-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #F8FAFC; font-weight: 600;">💬 Slack</span>
+            <span class="status-badge status-{'connected' if slack_connected else 'disconnected'}">
+                {'✓ Connected' if slack_connected else '✗ Disconnected'}
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if not slack_connected:
+        if st.button("Connect Slack", key="slack_btn"):
+            st.markdown(f"[Click to Authorize →]({API_BASE_URL}/auth/slack/login)")
     
     st.markdown("---")
     
-    # Slack OAuth
-    st.subheader("💬 Slack")
-    if slack_connected:
-        st.markdown('<span class="status-badge status-connected">✓ Connected</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="status-badge status-disconnected">✗ Not Connected</span>', unsafe_allow_html=True)
-        if st.button("Connect Slack", key="slack_connect"):
-            st.markdown(f"[Click here to connect]({API_BASE_URL}/auth/slack/login)")
-    
-    st.markdown("---")
-    st.caption("🔗 Backend Status")
+    # Backend status
     try:
         response = requests.get(f"{API_BASE_URL}/", timeout=2)
-        if response.status_code == 200:
-            st.success("✅ Backend Online")
-        else:
-            st.error("❌ Backend Error")
+        backend_status = "🟢 Online" if response.status_code == 200 else "🔴 Error"
     except:
-        st.error("❌ Backend Offline")
+        backend_status = "🔴 Offline"
+    
+    st.markdown(f"""
+    <div class="connection-card">
+        <div style="color: #94A3B8; font-size: 0.875rem; margin-bottom: 0.5rem;">Backend Status</div>
+        <div style="color: #F8FAFC; font-weight: 600;">{backend_status}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Main content area
-tab1, tab2, tab3 = st.tabs(["🚀 Agent Execution", "📊 Execution History", "⚙️ Settings"])
+# Main tabs
+tab1, tab2 = st.tabs(["🚀 Agent Execution", "📊 History"])
 
 with tab1:
-    st.header("Agent Execution")
-    
-    # User request input
+    # User input
     user_request = st.text_area(
         "What would you like the agent to do?",
-        placeholder="Example: Schedule a team meeting for tomorrow at 2pm and send a Slack notification to #general",
-        height=100
+        placeholder="Example: Schedule a presentation meeting with sathya@email.com at 9pm feb 1 and send notification to #social",
+        height=120,
+        label_visibility="collapsed"
     )
     
-    col1, col2, col3 = st.columns([1, 1, 2])
+    col1, col2 = st.columns([1, 3])
     
     with col1:
-        run_button = st.button("🚀 Run Agent", type="primary")
-    
-    with col2:
-        if st.button("🗑️ Clear"):
-            st.rerun()
+        run_button = st.button("▶️ Execute Agent", type="primary", use_container_width=True)
     
     if run_button and user_request:
-        with st.spinner("🔄 Agent is working..."):
+        with st.spinner("🔄 Agent executing workflow..."):
             try:
-                # Call the agent API
                 response = requests.post(
                     f"{API_BASE_URL}/agent/run",
                     json={"user_request": user_request},
@@ -148,97 +316,69 @@ with tab1:
                 if response.status_code == 200:
                     result = response.json()
                     
-                    # Display status
-                    st.subheader("📋 Execution Status")
+                    # Status
                     status = result.get("status", "UNKNOWN")
                     if status == "COMPLETED":
-                        st.success(f"✅ Status: {status}")
+                        st.markdown('<div class="success-box">✅ Execution Completed Successfully</div>', unsafe_allow_html=True)
                     elif status == "FAILED":
-                        st.error(f"❌ Status: {status}")
-                    else:
-                        st.info(f"ℹ️ Status: {status}")
+                        st.markdown('<div class="error-box">❌ Execution Failed</div>', unsafe_allow_html=True)
                     
-                    # Display plan
-                    if result.get("plan"):
-                        st.subheader("🎯 Execution Plan")
-                        plan = result["plan"]
-                        st.write(f"**Goal:** {plan.get('goal', 'N/A')}")
-                        
-                        if plan.get("steps"):
-                            st.write("**Steps:**")
-                            for step in plan["steps"]:
-                                with st.expander(f"Step {step.get('id')}: {step.get('action')}"):
-                                    st.json(step)
-                    
-                    # Display logs
+                    # Execution logs
                     if result.get("logs"):
-                        st.subheader("📝 Execution Logs")
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        st.markdown('<div class="result-header">📝 Execution Trace</div>', unsafe_allow_html=True)
                         for log in result["logs"]:
+                            agent = log.get("agent", "system")
+                            msg = log.get("msg", "")
                             st.markdown(
-                                f'<div class="log-item"><strong>{log.get("agent", "System")}:</strong> {log.get("msg", "")}</div>',
+                                f'<div class="log-item"><span class="log-agent">{agent}:</span> {msg}</div>',
                                 unsafe_allow_html=True
                             )
+                        st.markdown('</div>', unsafe_allow_html=True)
                     
-                    # Display execution results
+                    # Results
                     if result.get("execution_results"):
-                        st.subheader("📊 Results")
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        st.markdown('<div class="result-header">📊 Results</div>', unsafe_allow_html=True)
                         
-                        # Show summary if available
-                        for step_id, step_result in result["execution_results"].items():
-                            if isinstance(step_result, dict) and step_result.get("summary"):
-                                st.success("✅ AI Summary Generated!")
-                                st.markdown("### 📝 Summary")
-                                st.info(step_result.get("summary"))
-                                st.caption(f"Analyzed {step_result.get('message_count', 0)} messages")
-                                st.markdown("---")
+                        results = result["execution_results"]
                         
-                        # Show calendar event links if available
-                        for step_id, step_result in result["execution_results"].items():
-                            if isinstance(step_result, dict) and step_result.get("html_link"):
-                                st.success(f"✅ Event Created Successfully!")
-                                st.markdown(f"**Event ID:** `{step_result.get('event_id')}`")
-                                st.markdown(f"**📅 [View Event in Google Calendar]({step_result.get('html_link')})**")
-                                st.write(f"**Title:** {step_result.get('summary')}") 
-                                st.write(f"**Start:** {step_result.get('start')}")
-                                st.write(f"**End:** {step_result.get('end')}")
-                                st.markdown("---")
+                        # Show summaries
+                        for step_id, step_result in results.items():
+                            if isinstance(step_result, dict):
+                                # AI Summary
+                                if step_result.get("summary") and step_result.get("message_count", 0) > 0:
+                                    st.success("✅ AI Summary Generated")
+                                    st.info(f"📝 {step_result['summary']}")
+                                    st.caption(f"Analyzed {step_result['message_count']} messages")
+                                
+                                # Calendar event
+                                elif step_result.get("html_link"):
+                                    st.success("✅ Calendar Event Created")
+                                    st.markdown(f"**📅 {step_result.get('summary')}**")
+                                    st.markdown(f"🕒 {step_result.get('start')} → {step_result.get('end')}")
+                                    st.markdown(f"[View in Google Calendar →]({step_result['html_link']})")
+                                
+                                # Slack message
+                                elif step_result.get("success") and step_result.get("ts"):
+                                    st.success("✅ Slack Message Posted")
                         
-                        # Show raw JSON for debugging
-                        with st.expander("📋 Raw Response"):
-                            st.json(result["execution_results"])
+                        st.markdown('</div>', unsafe_allow_html=True)
                         
+                        # Raw data (collapsed)
+                        with st.expander("🔍 View Raw Response"):
+                            st.json(results)
+                    
                 else:
-                    st.error(f"❌ Error: {response.status_code} - {response.text}")
+                    st.markdown(f'<div class="error-box">❌ Error: {response.status_code}</div>', unsafe_allow_html=True)
                     
             except requests.exceptions.Timeout:
-                st.error("⏱️ Request timed out. The agent may still be processing.")
+                st.markdown('<div class="error-box">⏱️ Request timeout - agent may still be processing</div>', unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.markdown(f'<div class="error-box">❌ Error: {str(e)}</div>', unsafe_allow_html=True)
 
 with tab2:
-    st.header("Execution History")
-    st.info("📌 Feature coming soon! This will show past agent executions.")
-
-with tab3:
-    st.header("Settings")
-    
-    st.subheader("🔧 Configuration")
-    
-    mock_tools = st.checkbox("Enable Mock Tools", value=False)
-    st.caption("Use mock tools instead of real API calls for testing")
-    
-    offline_planner = st.checkbox("Use Offline Planner", value=False)
-    st.caption("Use rule-based planner instead of LLM-based planner")
-    
-    if st.button("Save Settings"):
-        st.success("✅ Settings saved!")
-    
-    st.markdown("---")
-    
-    st.subheader("📊 System Info")
-    st.write(f"**Backend URL:** {API_BASE_URL}")
-    st.write(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-# Footer
-st.markdown("---")
-st.caption("Built with ❤️ using Streamlit | NeuroMCP Agent Hub v1.0")
+    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+    st.markdown('<div class="result-header">📊 Execution History</div>', unsafe_allow_html=True)
+    st.info("Feature coming soon - view past agent executions and analytics")
+    st.markdown('</div>', unsafe_allow_html=True)
