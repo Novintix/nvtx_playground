@@ -3,9 +3,11 @@ Direct Google Calendar integration
 Bypasses MCP client to avoid circular dependency
 """
 import httpx
+import os
 from typing import Dict, Any
 from datetime import datetime
-from app.services.oauth.token_store import get_token
+from app.services.oauth.token_store import get_token, upsert_token
+from app.services.oauth.google_oauth import refresh_google_token
 
 
 GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3"
@@ -21,6 +23,7 @@ async def create_calendar_event(
 ) -> Dict[str, Any]:
     """
     Create a Google Calendar event using OAuth tokens
+    Auto-refreshes expired tokens automatically
     
     Args:
         title: Event title
@@ -39,6 +42,8 @@ async def create_calendar_event(
         raise RuntimeError("Google Calendar not connected. Please authenticate first.")
     
     access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    
     if not access_token:
         raise RuntimeError("No access token found for Google Calendar")
     
@@ -72,8 +77,37 @@ async def create_calendar_event(
             timeout=30.0
         )
         
+        # Handle token expiration
         if response.status_code == 401:
-            raise RuntimeError("Access token expired. Please re-authenticate with Google.")
+            if not refresh_token:
+                raise RuntimeError("Access token expired and no refresh token available. Please re-authenticate with Google.")
+            
+            # Automatically refresh the token
+            try:
+                new_access_token = await refresh_google_token(
+                    refresh_token,
+                    os.getenv("GOOGLE_CLIENT_ID"),
+                    os.getenv("GOOGLE_CLIENT_SECRET")
+                )
+                
+                # Update stored token
+                await upsert_token("google", {
+                    "access_token": new_access_token,
+                    "refresh_token": refresh_token
+                })
+                
+                # Retry the request with new token
+                response = await client.post(
+                    f"{GOOGLE_CALENDAR_API}/calendars/primary/events",
+                    headers={
+                        "Authorization": f"Bearer {new_access_token}",
+                        "Content-Type": "application/json"
+                    },
+                    json=event,
+                    timeout=30.0
+                )
+            except Exception as e:
+                raise RuntimeError(f"Token refresh failed: {str(e)}. Please re-authenticate with Google.")
         
         if response.status_code != 200:
             error_data = response.json() if response.text else {}
@@ -98,6 +132,7 @@ async def list_calendar_events(
 ) -> Dict[str, Any]:
     """
     List upcoming calendar events
+    Auto-refreshes expired tokens automatically
     
     Args:
         max_results: Maximum number of events to return
@@ -111,6 +146,7 @@ async def list_calendar_events(
         raise RuntimeError("Google Calendar not connected")
     
     access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
     
     params = {
         "maxResults": max_results,
@@ -130,6 +166,35 @@ async def list_calendar_events(
             params=params,
             timeout=30.0
         )
+        
+        # Handle token expiration
+        if response.status_code == 401:
+            if not refresh_token:
+                raise RuntimeError("Access token expired and no refresh token available. Please re-authenticate with Google.")
+            
+            # Automatically refresh the token
+            try:
+                new_access_token = await refresh_google_token(
+                    refresh_token,
+                    os.getenv("GOOGLE_CLIENT_ID"),
+                    os.getenv("GOOGLE_CLIENT_SECRET")
+                )
+                
+                # Update stored token
+                await upsert_token("google", {
+                    "access_token": new_access_token,
+                    "refresh_token": refresh_token
+                })
+                
+                # Retry the request with new token
+                response = await client.get(
+                    f"{GOOGLE_CALENDAR_API}/calendars/primary/events",
+                    headers={"Authorization": f"Bearer {new_access_token}"},
+                    params=params,
+                    timeout=30.0
+                )
+            except Exception as e:
+                raise RuntimeError(f"Token refresh failed: {str(e)}. Please re-authenticate with Google.")
         
         if response.status_code != 200:
             raise RuntimeError(f"Failed to list events: {response.status_code}")
