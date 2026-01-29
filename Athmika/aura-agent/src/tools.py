@@ -1,15 +1,17 @@
-from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import tool
 
 @tool
 def web_search_tool(query: str):
     """
-    Searches for recent interview questions and returns specific links.
-    Returns a list of results with Title, Snippet, and URL.
+    Searches the web for text results.
     """
-    # backend="news" helps find recent articles/blogs
-    search = DuckDuckGoSearchResults(num_results=3) 
-    return search.run(query)
+    try:
+        # SearchRun returns a simple string, easier for LLM to parse than SearchResults json
+        search = DuckDuckGoSearchRun()
+        return search.invoke(query)
+    except Exception as e:
+        return f"Error fetching search results: {str(e)}"
 
 def get_tools():
     return [web_search_tool]

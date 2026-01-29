@@ -1,42 +1,54 @@
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from src.state import AgentState
 from src.retrieval import get_retriever
 from src.tools import web_search_tool
 
-# Initialize LLM (Ensure you use the one you set up: Groq or Gemini)
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.5)
+# Initialize LLM
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.6)
 
 def retrieve_node(state: AgentState):
     """
-    Fetches Resume chunks + Web Search Results (with links).
+    Fetches context. 
+    - If "Trainer Mode": Performs Web Search + Resume RAG.
+    - If "Interview Mode": Prioritizes Resume Text for introductions, RAG for deep dives.
     """
     query = state["messages"][-1].content
     company = state["target_company"]
+    mode = state["mode"]
+    full_resume = state.get("resume_text", "")
     
     # 1. Internal RAG (Resume)
-    resume_context = ""
+    # If the user just says "Start" or "Hello", RAG is useless. Use full resume summary.
+    rag_context = ""
     retriever = get_retriever()
-    if retriever:
-        docs = retriever.invoke(query)
-        resume_context = "\n".join([doc.page_content for doc in docs])
     
-    # 2. External Search (Company Questions)
-    web_context = "No specific company info found."
-    if company and len(company) > 2:
+    if retriever and len(query) > 5: # Only RAG if query is substantial
         try:
-            # We specifically ask for "Interview Questions" to get listicles/blogs
-            search_query = f"latest {company} technical interview questions and experience 2025 2026"
-            web_context = web_search_tool.invoke(search_query)
+            docs = retriever.invoke(query)
+            rag_context = "\n".join([doc.page_content for doc in docs])
         except Exception:
-            web_context = "Search failed."
+            rag_context = ""
+            
+    # Fallback: If RAG is empty (or query is short), use the first 2000 chars of full resume
+    if not rag_context and full_resume:
+        rag_context = f"RESUME SUMMARY:\n{full_resume[:2000]}..."
+
+    # 2. External Search (Only for Trainer Mode to save time/tokens)
+    web_context = ""
+    if "trainer" in mode.lower() and company:
+        try:
+            # Search specifically for questions
+            search_query = f"{company} technical interview questions for freshers 2024 2025"
+            web_context = web_search_tool.invoke(search_query)
+        except Exception as e:
+            web_context = f"Search currently unavailable: {e}"
 
     combined_context = f"""
-    === RESUME CONTEXT (STRICT GROUNDING) ===
-    {resume_context}
+    === RESUME CONTEXT ===
+    {rag_context}
     
-    === WEB SEARCH RESULTS (SOURCE DATA) ===
+    === WEB SEARCH RESULTS (Latest Data) ===
     {web_context}
     """
     
@@ -49,73 +61,69 @@ def generate_node(state: AgentState):
     messages = state["messages"]
     company = state["target_company"]
     
+    # Check conversation depth to control flow
+    conversation_length = len(messages)
+    
     if "trainer" in mode.lower():
-        # --- NEW TRAINER PROMPT ---
+        # --- TRAINER / MENTOR MODE ---
         system_prompt = f"""
-        You are AURA, an Expert Interview Coach.
+        You are AURA, an Expert Interview Mentor.
         
         TASK:
-        1. Analyze the [WEB SEARCH RESULTS] to find REAL interview questions asked by {company}.
-        2. Select the top 3 most relevant technical questions.
-        3. For each question, craft a "Winning Answer" based ONLY on the user's [RESUME CONTEXT].
+        1. Analyze the [WEB SEARCH RESULTS] to find REAL interview questions asking by {company}.
+        2. If specific questions are found, list 3 of them.
+        3. For each, draft a "Winning Answer" using the user's [RESUME CONTEXT].
         
-        STRICT RULES:
-        - Do NOT invent skills. If the resume doesn't have the answer, admit it.
-        - The answer must use the STAR format (Situation, Task, Action, Result) from the resume projects.
+        FORMAT:
+        - **Question:** ...
+        - **Why it's asked:** ...
+        - **Your Answer:** (Drafted in first person based on Resume)
         
-        OUTPUT FORMAT (Use this exact structure):
-        
-        ### 🎯 Top Interview Questions for {company}
-        
-        **Question 1:** [Question Text]
-        **Your Winning Answer:** [Drafted answer citing specific resume project]
-        
-        **Question 2:** [Question Text]
-        **Your Winning Answer:** [Drafted answer citing specific resume project]
-        
-        **Question 3:** [Question Text]
-        **Your Winning Answer:** [Drafted answer citing specific resume project]
-        
-        ---
-        ### 🔗 Sources
-        #1 [Source Name/URL from Search]
-        #2 [Source Name/URL from Search]
-        #3 [Source Name/URL from Search]
-        
-        CONTEXT DATA:
-        {context}
-        """
-    else:
-        # Mode 2: The Strict Interviewer
-        system_prompt = f"""
-        You are a Senior Technical Recruiter at {company}.
-        You are conducting a hard technical interview.
-        
-        GOAL: Test the candidate's depth.
-        
-        INSTRUCTIONS:
-        1. Look at the user's latest answer.
-        2. CRITIQUE it based on the [RESUME CONTEXT]. Did they lie? Did they miss details?
-        3. Ask a follow-up question that digs deeper into their specific tech stack (e.g., "Why did you use LangGraph instead of Zapier?").
-        4. Be professional, concise, and neutral. Do not help them.
-
-        STRICT GROUNDING RULE:
-        - Do NOT assume technologies (like Flutter or React) unless they are explicitly present in the [RESUME CONTEXT] or the User's latest message.
-        - If you don't see a technology in the context, ask the user what stack they used; do not guess.
+        If the resume is missing info for a question, suggest what they should add.
         
         CONTEXT:
         {context}
         """
+    else:
+        # --- INTERVIEWER SIMULATION MODE ---
+        # Logic: If it's the start (len <= 2), ask for intro. Don't critique "Start".
+        
+        if conversation_length <= 2:
+            system_prompt = f"""
+            You are a Senior Technical Recruiter at {company}. 
+            You are starting an interview.
+            
+            YOUR GOAL: 
+            Start the interview professionally. Do NOT critique anything yet.
+            
+            INSTRUCTION:
+            1. Welcome the candidate.
+            2. Ask them to "Introduce yourself" or "Walk me through your resume".
+            3. Be brief and professional.
+            """
+        else:
+            system_prompt = f"""
+            You are a Senior Technical Recruiter at {company}.
+            You are in the middle of a technical interview.
+            
+            YOUR GOAL: Test the candidate's depth based on their Resume.
+            
+            INSTRUCTIONS:
+            1. Analyze the user's LATEST response. 
+            2. If it is short or vague, CRITIQUE it ("You mentioned X, but didn't explain Y...").
+            3. Ask a hard FOLLOW-UP technical question based on the [RESUME CONTEXT].
+            4. If they mentioned a specific project (e.g., from the resume), grill them on the tech stack (Why this DB? Why this Framework?).
+            
+            CONTEXT:
+            {context}
+            """
 
-    # Create the prompt chain
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("placeholder", "{messages}")
     ])
     
     chain = prompt | llm
-    
-    # Run the chain
     response = chain.invoke({"messages": messages})
     
     return {"messages": [response]}

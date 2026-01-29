@@ -14,24 +14,24 @@ def ingest_resume(file_path: str):
     # 1. Load PDF
     loader = PyPDFLoader(file_path)
     docs = loader.load()
+    # Extract full text for "Introduce Yourself" context
     full_text = "\n".join([d.page_content for d in docs])
 
-    # 2. Split Text
+    # 2. Split Text for RAG
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     splits = text_splitter.split_documents(docs)
 
-    # 3. Create Embeddings (Using the FIXED model name)
+    # 3. Create Embeddings
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     # 4. Save Vector Store
     vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
     vectorstore.save_local(DB_INDEX_PATH)
 
-    print("✅ Resume Ingested with Groq Embeddings (all-MiniLM-L6-v2)!")
-    return full_text, vectorstore
+    print("✅ Resume Ingested!")
+    return full_text, vectorstore # Return full text so App.py can store it
 
 def get_retriever():
-    # Must use the SAME model name for retrieval
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     if os.path.exists(DB_INDEX_PATH):
@@ -40,6 +40,7 @@ def get_retriever():
             embeddings, 
             allow_dangerous_deserialization=True
         )
+        # Search k=3 for specific technical details
         return vectorstore.as_retriever(search_kwargs={"k": 3})
     else:
         return None
