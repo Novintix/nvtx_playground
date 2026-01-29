@@ -11,4 +11,5 @@ class AgentState(TypedDict):
     mode: str
     target_company: str
     resume_text: str     # Raw text for broad context
-    retrieved_docs: str  # RAG + Search results
+    retrieved_docs: str
+    topic_depth: int  # RAG + Search results

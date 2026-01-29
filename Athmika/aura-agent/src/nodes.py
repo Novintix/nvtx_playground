@@ -1,5 +1,6 @@
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage
 from src.state import AgentState
 from src.retrieval import get_retriever
 from src.tools import web_search_tool
@@ -23,24 +24,29 @@ def retrieve_node(state: AgentState):
     rag_context = ""
     retriever = get_retriever()
     
-    if retriever and len(query) > 5: # Only RAG if query is substantial
+    if retriever and len(query) > 10: # Only RAG if query is substantial
         try:
             docs = retriever.invoke(query)
             rag_context = "\n".join([doc.page_content for doc in docs])
-        except Exception:
-            rag_context = ""
+        except:
+            pass
             
     # Fallback: If RAG is empty (or query is short), use the first 2000 chars of full resume
     if not rag_context and full_resume:
         rag_context = f"RESUME SUMMARY:\n{full_resume[:2000]}..."
-
     # 2. External Search (Only for Trainer Mode to save time/tokens)
     web_context = ""
     if "trainer" in mode.lower() and company:
         try:
             # Search specifically for questions
-            search_query = f"{company} technical interview questions for freshers 2024 2025"
-            web_context = web_search_tool.invoke(search_query)
+            search_query = f"{company} technical interview questions for freshers 2025 2026"
+            raw_search = web_search_tool.invoke(search_query)
+            if isinstance(raw_search, str):
+                web_context = "TOP SEARCH RESULTS:\n"
+                for i, res in enumerate(raw_search):
+                    web_context += f"SOURCE{i+1}.\nURL: {res.get('url')}\nCONTENT: {res.get('content')}\n\n"
+            else:
+                web_context = str(raw_search)
         except Exception as e:
             web_context = f"Search currently unavailable: {e}"
 
@@ -60,6 +66,8 @@ def generate_node(state: AgentState):
     context = state["retrieved_docs"]
     messages = state["messages"]
     company = state["target_company"]
+    current_depth = state.get("topic_depth", 0)
+    new_depth = current_depth
     
     # Check conversation depth to control flow
     conversation_length = len(messages)
@@ -67,23 +75,43 @@ def generate_node(state: AgentState):
     if "trainer" in mode.lower():
         # --- TRAINER / MENTOR MODE ---
         system_prompt = f"""
-        You are AURA, an Expert Interview Mentor.
+        You are AURA, an Expert Technical Interview Mentor for students.
+        
+        INPUT DATA:
+        1. **RESUME CONTEXT**: The candidate's actual projects and skills.
+        2. **REAL INTERVIEW SOURCES**: A list of search results with "URL" and "CONTENT" containing real questions asked at {company}.
         
         TASK:
-        1. Analyze the [WEB SEARCH RESULTS] to find REAL interview questions asking by {company}.
-        2. If specific questions are found, list 3 of them.
-        3. For each, draft a "Winning Answer" using the user's [RESUME CONTEXT].
+        1. **Topic Identification**: Look at the user's last message. 
+           - If they asked for specific topics (e.g., "Python questions"), filter for those.
+           - If they just said "Start" or "Help", pick the top 3 most frequent technical questions found in the search results.
+           
+        2. **Question Selection**: Select 3 distinct REAL interview questions from the [REAL INTERVIEW SOURCES].
         
-        FORMAT:
-        - **Question:** ...
-        - **Why it's asked:** ...
-        - **Your Answer:** (Drafted in first person based on Resume)
+        3. **Drafting the Solution**: For *each* question:
+           - **Extract Source**: Copy the exact `URL` where you found this question.
+           - **Draft Answer**: Write a "Winning Answer" in the first person ("I...") using the [RESUME CONTEXT]. 
+           - **Explain Logic**: Briefly explain *why* this answer is strong (e.g., "It mentions your specific project X...").
         
-        If the resume is missing info for a question, suggest what they should add.
+        STRICT RULES:
+        - If the resume does not have enough info to answer a specific question, admit it in the "Ideal Answer" section and suggest what project/skill they should add.
+        - Do NOT invent URLs. Use the ones provided in the search results.
+        
+        OUTPUT FORMAT:
+       ### 🎯 Question [1/2/3]
+        **❓ Real Question:** [Insert Question Text from Search]
+        **🔗 Source:** [Insert Exact URL from Search Result]/n
+        
+        **✅ Ideal Answer:** [First-person answer drafting using resume data and RESUME data alone. Don't try to build on knowledge outside the resume.]/n
+        
+        **💡 The Logic:** [Why this answer is good?]
+        
         
         CONTEXT:
         {context}
         """
+        new_depth = 0
+
     else:
         # --- INTERVIEWER SIMULATION MODE ---
         # Logic: If it's the start (len <= 2), ask for intro. Don't critique "Start".
@@ -101,14 +129,28 @@ def generate_node(state: AgentState):
             2. Ask them to "Introduce yourself" or "Walk me through your resume".
             3. Be brief and professional.
             """
+            new_depth = 0
         # Phase 2: The Grill (Subsequent Turns)
         else:
+            if current_depth >= 2:
+                instruction = "TRANSITION: The candidate has answerd enough on this move. Ensure a smooth transistion to a DIFFERENT topic about their skills in their resume."
+                new_depth = 0
+            else:
+                instruction = "DRILL DEEP: The candidate just answered. Pick ONE specific technical detail they mentioned and ask a 'Why' or 'How' follow-up question."
+                new_depth = current_depth + 1
             system_prompt = f"""
             You are a Senior Technical Recruiter at {company}.
             You are conducting a live technical interview.
             
             CONTEXT:
             {context}
+            
+            TASK:
+            1. **SCORE CARD**: Evaluate the user's answer (0-10).
+               - Technical Accuracy: Did they use correct terminology?
+               - Clarity: Was it structured (STAR format)?
+            2. **GAP ANALYSIS**: Briefly mention one thing they missed or could improve.
+            3. **NEXT QUESTION**: {instruction}
             
             STRICT RULES FOR RESPONSE:
             1. **ONE QUESTION ONLY**: You must ask EXACTLY ONE question. Never ask "Also, tell me about X...".
@@ -124,14 +166,27 @@ def generate_node(state: AgentState):
             
             GOOD EXAMPLE:
             "That's interesting. You mentioned using LSTM for energy forecasting. Why did you choose LSTM over a simpler regression model for this specific dataset?"
+            
+            OUTPUT FORMAT:
+            📊 **Score Card**
+            * **Technical:** X/10
+            * **Clarity:** Y/10
+            
+            📉 **Feedback**
+            [1 sentence critique]
+            
+            🎤 **Next Question**
+            [Your Question Here]
             """
 
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
+        SystemMessage(content = system_prompt),
         ("placeholder", "{messages}")
     ])
     
     chain = prompt | llm
     response = chain.invoke({"messages": messages})
     
-    return {"messages": [response]}
+    return {"messages": [response],
+            "topic_depth": new_depth}
