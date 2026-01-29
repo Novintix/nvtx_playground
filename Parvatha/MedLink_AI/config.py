@@ -1,18 +1,57 @@
 # config.py
+from pathlib import Path
 
-NCBI_EMAIL = "parvatha2510@gmail.com"  # REQUIRED by NCBI
-NCBI_API_KEY = "a7f45b3edcba250eaffa9164ae79dbd10509"     # optional but faster
+# -----------------------------
+# NCBI Configuration
+# -----------------------------
+NCBI_EMAIL = "parvatha2510@gmail.com"
+NCBI_API_KEY = "a7f45b3edcba250eaffa9164ae79dbd10509"
 
 MAX_PAPERS_DEFAULT = 25
 MAX_PAPERS_RANGE = (10, 50)
 
-FAISS_PATH = "data/faiss_index"
-SQLITE_DB = "data/cache.db"
+# -----------------------------
+# Storage Paths
+# -----------------------------
+DATA_DIR = Path("data")
+DATA_DIR.mkdir(exist_ok=True)
 
-# Re-ranking weights
+FAISS_PATH = DATA_DIR / "faiss_index"
+SQLITE_DB = DATA_DIR / "cache.db"
+
+FAISS_PATH.mkdir(exist_ok=True)
+
+# -----------------------------
+# Re-ranking Weights
+# -----------------------------
 WEIGHTS = {
     "relevance": 0.4,
     "citations": 0.3,
     "recency": 0.2,
     "journal": 0.1
+}
+
+# -----------------------------
+# LangChain Configuration
+# -----------------------------
+LLM_MODEL = "google/flan-t5-large"
+EMBEDDING_MODEL = "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract"
+MAX_TOKEN_LENGTH = 512
+GENERATION_MAX_TOKENS = 256
+
+# -----------------------------
+# Multi-hop Configuration
+# -----------------------------
+MAX_HOPS = 2
+TOP_K_PER_HOP = 5
+
+# -----------------------------
+# Error Messages
+# -----------------------------
+ERROR_MESSAGES = {
+    "ncbi_connection": "⚠️ Unable to connect to NCBI. Check internet connection.",
+    "no_papers": "📭 No papers found. Try different keywords.",
+    "faiss_error": "⚠️ Vector database error. Try rebuilding index.",
+    "model_error": "⚠️ Model loading failed. Check memory or dependencies.",
+    "generation_error": "⚠️ Answer generation failed. Using fallback method."
 }
