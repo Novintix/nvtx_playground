@@ -1,0 +1,16 @@
+[project]
+name = "decodx"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "groq>=1.0.0",
+    "langchain>=1.2.7",
+    "langchain-community>=0.4.1",
+    "mcp>=1.26.0",
+    "pandas>=3.0.0",
+    "python-dotenv>=1.2.1",
+    "langchain-huggingface",
+    "sentence-transformers",
+]
