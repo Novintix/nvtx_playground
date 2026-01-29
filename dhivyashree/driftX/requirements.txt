@@ -1,0 +1,14 @@
+langchain
+langgraph
+streamlit
+faiss-cpu
+pydantic
+python-dotenv
+sentence-transformers
+langchain-google-genai
+langchain-community
+pymongo
+PyGithub
+pydantic
+tiktoken
+langchain-huggingface
