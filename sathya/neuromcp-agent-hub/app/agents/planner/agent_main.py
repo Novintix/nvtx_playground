@@ -20,13 +20,34 @@ def run_planner(state: dict) -> dict:
                 plan_obj = plan_obj.model_dump()
 
         state["plan"] = plan_obj
+        
+        # Debug: Log the plan for troubleshooting
+        import json
+        if hasattr(plan_obj, 'model_dump'):
+            plan_dict = plan_obj.model_dump()
+        else:
+            plan_dict = plan_obj
+        logs.append({"agent": "planner", "msg": f"Generated plan: {json.dumps(plan_dict, indent=2)}"})
+        
         logs.append({"agent": "planner", "msg": "Plan created successfully."})
         state["logs"] = logs
         return state
 
     except Exception as e:
-        # fallback automatically
-        logs.append({"agent": "planner", "msg": f"Groq failed ({e}). Falling back to offline planner."})
+        # Provide helpful error message
+        error_msg = str(e)
+        if "GROQ_API_KEY" in error_msg:
+            logs.append({
+                "agent": "planner", 
+                "msg": f"❌ GROQ_API_KEY missing or invalid. Falling back to offline pattern-based planner."
+            })
+        else:
+            logs.append({
+                "agent": "planner", 
+                "msg": f"Groq LLM failed: {error_msg}. Falling back to offline planner."
+            })
+        
+        # Fallback to pattern-based planner
         plan_obj = build_plan(user_request, tools, tz=tz)
         state["plan"] = plan_obj
         state["logs"] = logs

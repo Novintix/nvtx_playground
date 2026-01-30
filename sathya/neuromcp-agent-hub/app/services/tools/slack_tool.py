@@ -208,18 +208,26 @@ async def read_slack_messages(
         
         messages = result.get("messages", [])
         
+        # Filter out only system messages (joins, leaves, etc.)
+        # Keep bot messages as they are legitimate content
+        filtered_messages = [
+            {
+                "text": msg.get("text", ""),
+                "user": msg.get("user", "unknown"),
+                "timestamp": msg.get("ts", ""),
+                "type": msg.get("type", "message")
+            }
+            for msg in messages
+            if (
+                msg.get("type") == "message" and 
+                msg.get("text") and
+                not msg.get("subtype")  # Only exclude system messages (joins, leaves, etc.)
+            )
+        ]
+        
         return {
             "success": True,
             "channel": channel,
-            "count": len(messages),
-            "messages": [
-                {
-                    "text": msg.get("text", ""),
-                    "user": msg.get("user", "unknown"),
-                    "timestamp": msg.get("ts", ""),
-                    "type": msg.get("type", "message")
-                }
-                for msg in messages
-                if msg.get("type") == "message" and msg.get("text")  # Filter out non-text messages
-            ]
+            "count": len(filtered_messages),  # Use filtered count, not raw count
+            "messages": filtered_messages
         }

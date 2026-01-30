@@ -80,6 +80,16 @@ def validate_plan_neurosymbolic(
             if not isinstance(tool, str) or tool not in allowed:
                 result.valid = False
                 result.errors.append(f"{sid}: invalid tool '{tool}' (hallucination or not allowed)")
+        
+        # 2.5) Rate limiting check
+        if tool is not None and isinstance(tool, str):
+            from app.agents.validator.rate_limiter import check_rate_limit
+            
+            # Check rate limit for this tool
+            is_allowed, rate_error = check_rate_limit(tool)
+            if not is_allowed:
+                result.valid = False
+                result.errors.append(f"{sid}: {rate_error}")
 
         # 3) Input schema rule (symbolic)
         if tool is not None and isinstance(tool, str) and tool in allowed:
@@ -96,7 +106,27 @@ def validate_plan_neurosymbolic(
                     result.valid = False
                     result.errors.append(f"{sid}: input schema mismatch for '{tool}': {e.message}")
 
-            # 4) Approval rule (high-risk tools)
+            # 4) Data Validation Rules (universal checks)
+            from app.agents.validator.validation_rules import (
+                validate_calendar_event_input,
+                validate_slack_message_input
+            )
+            
+            if tool == "calendar.create_event":
+                validation_errors = validate_calendar_event_input(step_input)
+                if validation_errors:
+                    result.valid = False
+                    for err in validation_errors:
+                        result.errors.append(f"{sid}: {err}")
+            
+            elif tool == "slack.post_message":
+                validation_errors = validate_slack_message_input(step_input)
+                if validation_errors:
+                    result.valid = False
+                    for err in validation_errors:
+                        result.errors.append(f"{sid}: {err}")
+
+            # 5) Approval rule (high-risk tools)
             if tool_spec.get("requires_approval", False):
                 pending.append(
                     ApprovalRequest(
@@ -107,7 +137,7 @@ def validate_plan_neurosymbolic(
                     )
                 )
 
-            # 5) Policy patch: timezone normalization for calendar tools (optional)
+            # 6) Policy patch: timezone normalization for calendar tools (optional)
             if tool.startswith("calendar.") and isinstance(step_input, dict):
                 tz = step_input.get("timezone")
                 if tz and tz != default_timezone:

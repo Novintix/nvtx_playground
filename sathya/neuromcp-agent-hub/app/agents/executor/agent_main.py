@@ -96,7 +96,11 @@ async def run_executor(state: Dict[str, Any]) -> Dict[str, Any]:
                         break
                 
                 if not messages:
-                    raise RuntimeError("No messages found to summarize. Make sure to read messages first.")
+                    raise RuntimeError(
+                        "No messages found to summarize. "
+                        "The channel may only contain system messages (joins, leaves). "
+                        "Try asking to read more messages with a higher limit."
+                    )
                 
                 logs.append({"agent": "executor", "msg": f"Summarizing {len(messages)} messages with AI..."})
                 summary = summarize_slack_messages(messages)
@@ -124,8 +128,10 @@ async def run_executor(state: Dict[str, Any]) -> Dict[str, Any]:
             state["error"] = error_msg
             return state
 
-    state["status"] = "COMPLETED"
+
+    state["status"] = "DONE"  # Changed from COMPLETED to match graph router
     state["execution_results"] = results
     logs.append({"agent": "executor", "msg": "🎉 Execution completed successfully!"})
     return state
+
 

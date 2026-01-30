@@ -92,14 +92,20 @@ def validate_tool_inputs(plan: Dict[str, Any], available_tools: List[Dict[str, A
         if tool not in allowed:
             raise ValueError(f"Hallucinated tool: {tool}")
 
-        # IMPORTANT: expects "input_schema" key in tool registry
+        # Check if input_schema exists
+        if "input_schema" not in tool_map[tool]:
+            raise ValueError(
+                f"Tool '{tool}' is missing 'input_schema' in tool registry. "
+                f"Available keys: {list(tool_map[tool].keys())}"
+            )
+        
         schema = tool_map[tool]["input_schema"]
         data = step.get("input", {})
 
         try:
             jsonschema_validate(instance=data, schema=schema)
         except ValidationError as e:
-            raise ValueError(f"Tool input schema mismatch: {e.message}")
+            raise ValueError(f"Tool '{tool}' input schema mismatch: {e.message}")
 
 
 # ===============================

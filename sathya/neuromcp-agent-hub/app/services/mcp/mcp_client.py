@@ -32,14 +32,20 @@ def get_default_tools() -> List[Dict[str, Any]]:
     return [
         {
             "name": "calendar.create_event",
-            "description": "Create a calendar event",
-            "inputSchema": {
+            "description": "Create a calendar event. Attendees should be provided as an array of email address strings.",
+            "input_schema": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
-                    "start_time": {"type": "string"},
-                    "end_time": {"type": "string"},
-                    "timezone": {"type": "string"}
+                    "title": {"type": "string", "description": "Event title"},
+                    "start_time": {"type": "string", "description": "ISO format datetime (e.g., 2026-01-30T16:00:00+05:30)"},
+                    "end_time": {"type": "string", "description": "ISO format datetime"},
+                    "description": {"type": "string", "description": "Event description (optional)"},
+                    "attendees": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of attendee email addresses (e.g., ['user@example.com'])"
+                    },
+                    "timezone": {"type": "string", "description": "Timezone (default: Asia/Kolkata)"}
                 },
                 "required": ["title", "start_time", "end_time"]
             }
@@ -47,7 +53,7 @@ def get_default_tools() -> List[Dict[str, Any]]:
         {
             "name": "slack.post_message",
             "description": "Post a message to Slack",
-            "inputSchema": {
+            "input_schema": {
                 "type": "object",
                 "properties": {
                     "channel": {"type": "string"},

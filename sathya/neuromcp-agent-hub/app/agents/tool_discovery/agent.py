@@ -70,6 +70,12 @@ async def discover_tools() -> List[Dict[str, Any]]:
     try:
         data = await client.list_tools()
         mcp_tools = data.get("tools", [])
+        
+        # Normalize schema keys: convert inputSchema to input_schema
+        for tool in mcp_tools:
+            if "inputSchema" in tool and "input_schema" not in tool:
+                tool["input_schema"] = tool.pop("inputSchema")
+        
         return direct_tools + mcp_tools
     except:
         # If MCP fails, just return direct tools

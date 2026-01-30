@@ -219,21 +219,23 @@ def build_plan(user_request: str, tools: list[dict], tz: str = "Asia/Kolkata") -
     
     # Slack notification or standalone message
     if ("slack" in req or "post" in req or "notify" in req or "send" in req) and not any(s.get("tool") == "calendar.create_event" for s in plan["steps"]):
-        # Standalone Slack message
+        # Standalone Slack message - extract actual message content
         message_text = user_request
         
         msg_patterns = [
-            r"message\s+['\"](.+?)['\"]",
-            r"send\s+['\"](.+?)['\"]",
-            r"post\s+['\"](.+?)['\"]",
-            r"slack\s+['\"](.+?)['\"]",
-            r"like\s+(.+?)\s+to",
-            r"say\s+(.+?)\s+to",
-            r"message\s+like\s+(.+)",
+            r"message\s+['\"](.+?)['\"]",                      # "message 'text'"
+            r"send\s+['\"](.+?)['\"]",                         # "send 'text'"
+            r"post\s+['\"](.+?)['\"]",                         # "post 'text'"
+            r"slack\s+['\"](.+?)['\"]",                        # "slack 'text'"
+            r"like\s+(.+?)\s+in\s+#",                          # "like X in #channel"
+            r"like\s+(.+?)\s+to\s+#",                          # "like X to #channel"
+            r"message\s+like\s+(.+?)\s+(?:in|to)\s+#",        # "message like X in/to #channel"
+            r"like\s+(.+?)\s+(?:in|to)\s+(?:#\w+|\w+\s+group)", # "like X in #channel" or "like X in slack group"
+            r"(?:send|post)\s+(?:message\s+)?like\s+(.+?)\s+(?:in|to)", # "send like X in/to"
         ]
         
         for pattern in msg_patterns:
-            match = re.search(pattern, req)
+            match = re.search(pattern, req, re.IGNORECASE)
             if match:
                 message_text = match.group(1).strip()
                 break
