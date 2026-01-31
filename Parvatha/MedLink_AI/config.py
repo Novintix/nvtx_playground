@@ -5,7 +5,7 @@ from pathlib import Path
 # NCBI Configuration
 # -----------------------------
 NCBI_EMAIL = "parvatha2510@gmail.com"
-NCBI_API_KEY = "a7f45b3edcba250eaffa9164ae79dbd10509"
+NCBI_API_KEY = "a3e8077e028e51beb7254e79945b2de38d08"
 
 MAX_PAPERS_DEFAULT = 25
 MAX_PAPERS_RANGE = (10, 50)

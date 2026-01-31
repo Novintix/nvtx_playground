@@ -22,8 +22,7 @@ sentencepiece
 # -----------------------------------------------------------------------------
 # Embeddings (PubMedBERT)
 # -----------------------------------------------------------------------------
-sentence-transformers
-
+sentence-transformers==3.3.1
 # -----------------------------------------------------------------------------
 # Vector Database (FAISS)
 # -----------------------------------------------------------------------------
@@ -91,6 +90,8 @@ rich
 
 # For file handling
 pathlib
+
+protobuf==5.28.2
 
 # For JSON handling (built-in but explicit)
 # json is built into Python

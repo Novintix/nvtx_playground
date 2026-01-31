@@ -43,7 +43,7 @@ def get_fetcher():
 def get_store():
     global _store
     if _store is None:
-        _store = PubMedEmbeddingStore()  # ✅ CORRECT - using the vector store class
+        _store = PubMedEmbeddingStore()   
     return _store
 
 

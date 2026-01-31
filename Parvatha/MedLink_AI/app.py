@@ -1,7 +1,7 @@
 # app.py
 import streamlit as st
 from multihop_rag import MultiHopRAG
-from db import init_db, get_db_stats
+from db import init_db, get_db_stats, migrate_db
 from error_handler import log_info
 import traceback
 
@@ -20,18 +20,62 @@ st.set_page_config(
 # ==================================================
 try:
     init_db()
+    migrate_db()
 except Exception as e:
     st.error(f"Database initialization failed: {e}")
 
 # ==================================================
-# Custom CSS
+# Custom CSS - FIXED SIDEBAR & SEARCH ICON
 # ==================================================
 st.markdown("""
 <style>
-    .main { background-color: #f9fbfd; }
-    .title { color: #0b4f6c; font-weight: 700; font-size: 3rem; }
-    .subtitle { color: #1b6f8a; font-size: 1.2rem; margin-bottom: 2rem; }
+    /* Main background */
+    .main { 
+        background-color: #f9fbfd; 
+    }
     
+    /* Fix sidebar background and text */
+    [data-testid="stSidebar"] {
+        background-color: #1e293b !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #e2e8f0 !important;
+    }
+    
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #cbd5e1 !important;
+    }
+    
+    /* Sidebar metrics */
+    [data-testid="stSidebar"] [data-testid="stMetricValue"] {
+        color: #22d3ee !important;
+        font-size: 1.5rem !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+        color: #94a3b8 !important;
+    }
+    
+    .title { 
+        color: #0b4f6c; 
+        font-weight: 700; 
+        font-size: 3rem; 
+    }
+    
+    .subtitle { 
+        color: #1b6f8a; 
+        font-size: 1.2rem; 
+        margin-bottom: 2rem; 
+    }
+    
+    /* Fix for answer text visibility */
     .answer-box {
         background-color: #ffffff;
         padding: 25px;
@@ -39,6 +83,13 @@ st.markdown("""
         border-left: 5px solid #0b4f6c;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         margin: 20px 0;
+        color: #2c3e50 !important;
+        font-size: 1.05rem;
+        line-height: 1.8;
+    }
+    
+    .answer-box p, .answer-box div, .answer-box span {
+        color: #2c3e50 !important;
     }
     
     .paper-box {
@@ -53,6 +104,16 @@ st.markdown("""
     
     .paper-box:hover {
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .paper-box h4 {
+        color: #0b4f6c !important;
+        margin: 10px 0 !important;
+    }
+    
+    .paper-box p {
+        color: #555 !important;
+        margin: 8px 0 !important;
     }
     
     .score-badge {
@@ -72,6 +133,36 @@ st.markdown("""
         padding: 15px;
         border-radius: 10px;
         text-align: center;
+    }
+    
+    /* Ensure all Streamlit elements have proper text color */
+    .stMarkdown {
+        color: #2c3e50 !important;
+    }
+    
+    /* Fix subheaders */
+    h2, h3, h4 {
+        color: #0b4f6c !important;
+    }
+    
+    /* Fix info/warning boxes */
+    .stAlert {
+        color: #2c3e50 !important;
+    }
+    
+    .stAlert > div {
+        color: #2c3e50 !important;
+    }
+    
+    /* Query display box */
+    .query-box {
+        background-color: #e8f4f8;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #1b6f8a;
+        color: #2c3e50 !important;
+        font-size: 1rem;
+        margin: 15px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -131,12 +222,17 @@ with st.sidebar:
 # Main Content
 # ==================================================
 
-# Query Input
+# Query Input - FIXED LABEL
+st.markdown("### 🔍 Enter your medical research question:")
 query = st.text_area(
-    "🔍 Enter your medical research question:",
+    label="query_input",
+    value="",
     placeholder="Example: How do lifestyle factors influence insulin resistance through inflammatory pathways?",
-    height=100
+    height=100,
+    label_visibility="collapsed"
 )
+
+st.markdown("")  # Add spacing
 
 # Search Button
 col1, col2, col3 = st.columns([2, 1, 2])
@@ -196,15 +292,22 @@ if search_btn:
             # Display Query
             # ==================================================
             st.subheader("🧾 Your Query")
-            st.info(query)
+            st.markdown(
+                f"<div class='query-box'>{query}</div>",
+                unsafe_allow_html=True
+            )
             
             # ==================================================
-            # Display Answer
+            # Display Answer - UPDATED FOR VISIBILITY
             # ==================================================
             st.subheader("🧠 Generated Answer")
             formatted_answer = format_answer(answer, response_mode)
             st.markdown(
-                f"<div class='answer-box'>{formatted_answer}</div>",
+                f"""
+                <div class='answer-box'>
+                    <p style='color: #2c3e50; margin: 0; line-height: 1.8;'>{formatted_answer}</p>
+                </div>
+                """,
                 unsafe_allow_html=True
             )
             
@@ -230,10 +333,10 @@ if search_btn:
                         <div class="paper-box">
                             <div style="margin-bottom: 10px;">
                                 <span class="score-badge">Score: {score:.3f}</span>
-                                <span style="color: #666; font-size: 0.9rem;">#{i}</span>
+                                <span style="color: #888; font-size: 0.9rem;">#{i}</span>
                             </div>
                             <h4 style="color: #0b4f6c; margin: 10px 0;">{title}</h4>
-                            <p style="color: #666; margin: 8px 0;">
+                            <p style="color: #555; margin: 8px 0;">
                                 <i>{journal}</i> • {year} • PMID: {pmid}
                             </p>
                             <a href="{pubmed_url}" target="_blank" style="color: #1b6f8a; text-decoration: none; font-weight: 500;">

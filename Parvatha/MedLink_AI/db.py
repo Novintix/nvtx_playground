@@ -64,6 +64,43 @@ def init_db():
     conn.close()
 
 
+def migrate_db():
+    """Add missing columns to existing database"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check and add paper_count to queries table
+        cursor.execute("PRAGMA table_info(queries)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'paper_count' not in columns:
+            print("⚠️ Adding missing paper_count column to queries table...")
+            cursor.execute("ALTER TABLE queries ADD COLUMN paper_count INTEGER DEFAULT 0")
+            conn.commit()
+            print("✅ Successfully added paper_count column!")
+        else:
+            print("✅ queries table - paper_count column exists")
+        
+        # Check and add final_score to papers table
+        cursor.execute("PRAGMA table_info(papers)")
+        paper_columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'final_score' not in paper_columns:
+            print("⚠️ Adding missing final_score column to papers table...")
+            cursor.execute("ALTER TABLE papers ADD COLUMN final_score REAL DEFAULT 0.0")
+            conn.commit()
+            print("✅ Successfully added final_score column!")
+        else:
+            print("✅ papers table - final_score column exists")
+        
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+
 def query_exists(query: str) -> bool:
     """Check if query is cached"""
     conn = get_connection()
@@ -184,3 +221,7 @@ def get_db_stats() -> Dict:
         "total_papers": paper_count,
         "unique_queries": unique_queries
     }
+    
+    
+    
+#python -c "from db import migrate_db; migrate_db()"

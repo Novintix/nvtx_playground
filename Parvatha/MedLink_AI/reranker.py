@@ -81,6 +81,7 @@ def recency_score(year: int) -> float:
     age = CURRENT_YEAR - year
     
     if age < 0:  # Future year (error)
+        
         return 0.0
     elif age <= 2:  # Very recent
         return 1.0
