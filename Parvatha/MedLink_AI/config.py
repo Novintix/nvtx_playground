@@ -5,7 +5,7 @@ from pathlib import Path
 # NCBI Configuration
 # -----------------------------
 NCBI_EMAIL = "parvatha2510@gmail.com"
-NCBI_API_KEY = "a3e8077e028e51beb7254e79945b2de38d08"
+NCBI_API_KEY = "a7f45b3edcba250eaffa9164ae79dbd10509"
 
 MAX_PAPERS_DEFAULT = 25
 MAX_PAPERS_RANGE = (10, 50)
@@ -32,12 +32,12 @@ WEIGHTS = {
 }
 
 # -----------------------------
-# LangChain Configuration
+# LLM Configuration (UPDATED)
 # -----------------------------
-LLM_MODEL = "google/flan-t5-large"
+LLM_MODEL = "BioMistral/BioMistral-7B"  # Changed from FLAN-T5
 EMBEDDING_MODEL = "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract"
 MAX_TOKEN_LENGTH = 512
-GENERATION_MAX_TOKENS = 256
+GENERATION_MAX_TOKENS = 512  # Increased for better synthesis
 
 # -----------------------------
 # Multi-hop Configuration

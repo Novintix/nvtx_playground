@@ -1,128 +1,32 @@
-# =============================================================================
-# MedLink AI - Medical Research Literature Navigator
-# Requirements File
-# =============================================================================
+# Core Framework
+langchain 
+langchain-community 
+langgraph 
 
-# -----------------------------------------------------------------------------
-# Core Framework - LangChain & LangGraph
-# -----------------------------------------------------------------------------
-langchain
-langchain-community
-langgraph
+# LLM & Transformers  
+transformers==4.36.0
+torch==2.1.0
+accelerate==0.25.0
+sentencepiece==0.1.99
+bitsandbytes==0.41.3  # For 8-bit quantization (optional)
 
-# -----------------------------------------------------------------------------
-# LLM & Transformers
-# -----------------------------------------------------------------------------
-transformers
-torch
-torchvision
-accelerate
-sentencepiece
+# Embeddings
+sentence-transformers 
 
-# -----------------------------------------------------------------------------
-# Embeddings (PubMedBERT)
-# -----------------------------------------------------------------------------
-sentence-transformers==3.3.1
-# -----------------------------------------------------------------------------
-# Vector Database (FAISS)
-# -----------------------------------------------------------------------------
-faiss-cpu
+# Vector Database
+faiss-cpu 
 
-# -----------------------------------------------------------------------------
-# Biomedical Literature Fetching (NCBI/PubMed)
-# -----------------------------------------------------------------------------
-biopython
+# Biomedical
+biopython==1.83
 
-# -----------------------------------------------------------------------------
-# Database & Storage
-# -----------------------------------------------------------------------------
-# sqlite3 is built into Python, no separate install needed
-
-# -----------------------------------------------------------------------------
 # Data Processing
-# -----------------------------------------------------------------------------
 numpy
-pandas
+pandas 
 
-# -----------------------------------------------------------------------------
-# Visualization (Optional - for future features)
-# -----------------------------------------------------------------------------
-matplotlib
-seaborn
-
-# -----------------------------------------------------------------------------
 # Web Framework
-# -----------------------------------------------------------------------------
 streamlit
 
-# -----------------------------------------------------------------------------
 # Utilities
-# -----------------------------------------------------------------------------
 tqdm
-python-dotenv
-pydantic
-
-# -----------------------------------------------------------------------------
-# Type Checking & Development (Optional)
-# -----------------------------------------------------------------------------
-typing-extensions
-
-# -----------------------------------------------------------------------------
-# HTTP Requests
-# -----------------------------------------------------------------------------
-requests
-urllib3
-
-# -----------------------------------------------------------------------------
-# Additional Dependencies
-# -----------------------------------------------------------------------------
-# For tokenization
-tokenizers
-
-# For huggingface model downloads
-huggingface-hub
-
-# For safe YAML/config handling
-pyyaml
-
-# For progress bars
-rich
-
-# For file handling
-pathlib
-
-protobuf==5.28.2
-
-# For JSON handling (built-in but explicit)
-# json is built into Python
-
-# For pickle (built-in but explicit)
-# pickle is built into Python
-
-# =============================================================================
-# Installation Instructions
-# =============================================================================
-# 
-# 1. Create virtual environment (recommended):
-#    python -m venv venv
-#
-# 2. Activate virtual environment:
-#    - Windows: venv\Scripts\activate
-#    - Mac/Linux: source venv/bin/activate
-#
-# 3. Install requirements:
-#    pip install -r requirements.txt
-#
-# 4. Run the app:
-#    streamlit run app.py
-#
-# =============================================================================
-# Notes
-# =============================================================================
-#
-# - If you have CUDA-capable GPU, replace faiss-cpu with faiss-gpu
-# - torch version may vary based on your CUDA version
-# - For Apple Silicon (M1/M2), use torch with MPS support
-# - Some packages may have conflicting dependencies - resolve as needed
-#
-# =============================================================================
+requests 
+huggingface-hub 
