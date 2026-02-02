@@ -12,7 +12,7 @@ sys.path.append(str(ROOT_DIR))
 from ingestion.ingest import load_financial_data, load_policy_data
 from vector_store.store import create_vector_store, retrieve_context
 from reasoning.graph import build_graph
-from MCP.guard import authorize, audit_log, log_request_approval, audit_exit
+from governance.guard import authorize, audit_log, log_request_approval, audit_exit
 
 # Load env
 load_dotenv()
