@@ -1,15 +1,19 @@
 # ncbi_fetcher.py
+import os
 from typing import List, Dict, Optional
 from Bio import Entrez
 import hashlib
-from config import NCBI_EMAIL, NCBI_API_KEY, MAX_PAPERS_DEFAULT
+from config import MAX_PAPERS_DEFAULT
 from db import query_exists, get_cached_papers, cache_papers
 from error_handler import handle_error, log_info, log_warning
+from dotenv import load_dotenv
+  
+load_dotenv()
 
 # Configure Entrez
-Entrez.email = NCBI_EMAIL
-if NCBI_API_KEY:
-    Entrez.api_key = NCBI_API_KEY
+Entrez.email = os.getenv("NCBI_EMAIL")
+if os.getenv("NCBI_API_KEY"):
+    Entrez.api_key = os.getenv("NCBI_API_KEY")
 
 
 class NCBIFetcher:
@@ -73,9 +77,12 @@ class NCBIFetcher:
             
             pmids = search_results.get("IdList", [])
             
-            if not pmids:
-                log_warning(f"📭 No papers found for query: '{query}'")
-                return []
+            
+            if not pmids and "AND" in query:
+                simplified = query.split("AND")[0].strip()
+                log_warning(f"🔁 Retrying with simplified query: {simplified}")
+                return self.fetch_papers(simplified, max_results, use_cache=False)
+
             
             log_info(f"📚 Found {len(pmids)} papers, fetching details...")
             

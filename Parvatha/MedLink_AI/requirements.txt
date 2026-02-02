@@ -1,32 +1,32 @@
-# Core Framework
-langchain 
-langchain-community 
-langgraph 
+# Core Orchestration
+langgraph
+langchain
+langchain-community
 
-# LLM & Transformers  
+# Transformers & Hugging Face
 transformers==4.36.0
-torch==2.1.0
-accelerate==0.25.0
-sentencepiece==0.1.99
-bitsandbytes==0.41.3  # For 8-bit quantization (optional)
+huggingface-hub==0.20.0
+ 
+# Torch
+torch
 
 # Embeddings
-sentence-transformers 
+sentence-transformers
 
 # Vector Database
-faiss-cpu 
+faiss-cpu
 
-# Biomedical
+# Biomedical Literature
 biopython==1.83
 
 # Data Processing
 numpy
-pandas 
+pandas
 
-# Web Framework
+# Web UI
 streamlit
 
 # Utilities
 tqdm
-requests 
-huggingface-hub 
+requests==2.31.0
+python-dotenv==1.0.0
