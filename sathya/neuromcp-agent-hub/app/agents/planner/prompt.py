@@ -30,6 +30,13 @@ STRICT GUARDRAILS:
    IF USER DOESN'T MENTION: sending, posting, notifying, messaging
    → DO NOT create message/notification/post steps!
 
+8. ⚠️🚨 CONTEXT TRAP: Meeting topics are NOT messages.
+   ✅ "meeting about deployment issues" → Create event with description "deployment issues"
+   ❌ WRONG: Creating event AND posting "deployment issues" to Slack.
+   
+   If the user says "meeting about [TOPIC]", that [TOPIC] goes into the calendar event description.
+   It does NOT go to Slack unless they ALSO say "and tell them on Slack".
+
 MESSAGE EXTRACTION RULES:
 When extracting Slack message content:
 - Extract ONLY the actual message text

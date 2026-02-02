@@ -16,7 +16,7 @@ def extract_emails_from_text(text: str) -> List[str]:
     email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
     
     # Also catch malformed emails with extra dots or weird patterns
-    relaxed_pattern = r'\b[a-zA-Z0-9._%+-]+[@.]+[a-zA-Z0-9.-]*\b'
+    relaxed_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]*\b'
     
     matches = set()
     matches.update(re.findall(email_pattern, text))
