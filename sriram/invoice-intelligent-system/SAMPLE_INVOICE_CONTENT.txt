@@ -1,0 +1,28 @@
+INVOICE
+
+Vendor: Acme Corporation
+Address: 123 Business Street, Tech City, CA 94000
+Phone: (555) 123-4567
+Email: billing@acmecorp.com
+
+Invoice Number: INV-2024-001
+Invoice Date: 2024-01-15
+Due Date: 2024-02-15
+
+BILL TO:
+Customer Name: Tech Solutions Inc
+Address: 456 Client Avenue, Innovation City, CA 95000
+
+DESCRIPTION                          QTY    UNIT PRICE    AMOUNT
+Widget A - Premium Model             10     50.00         500.00
+Widget B - Standard Edition          5      100.00        500.00
+Service Package - Annual             1      200.00        200.00
+
+                                     SUBTOTAL:            1200.00
+                                     TAX (8%):            96.00
+                                     TOTAL:               1296.00
+
+Payment Terms: Net 30 days
+Payment Method: Bank Transfer or Check
+
+Thank you for your business!

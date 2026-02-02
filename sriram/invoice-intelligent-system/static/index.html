@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Intelligence System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📤 Document Ingestion System</h1>
+            <p class="subtitle">Upload and process company documents - Invoices are automatically indexed for querying</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Upload Section -->
+            <section class="card">
+                <h2>📤 Upload Invoice</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" hidden>
+                    <div class="upload-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Click to upload or drag and drop</p>
+                        <span class="file-types">PDF, DOCX, XLSX, PNG, JPG</span>
+                    </div>
+                </div>
+                <button id="uploadBtn" class="btn btn-primary" disabled>Upload & Process</button>
+            </section>
+
+            <!-- Processing Status -->
+            <section class="card" id="statusSection" style="display: none;">
+                <h2>⚙️ Processing Status</h2>
+                <div class="status-content">
+                    <div class="status-item">
+                        <span class="label">Document ID:</span>
+                        <span id="docId" class="value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Status:</span>
+                        <span id="status" class="value badge">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Stage:</span>
+                        <span id="stage" class="value">-</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="card" id="resultsSection" style="display: none;">
+                <h2>📊 Extracted Data</h2>
+                <div id="resultsContent" class="results-grid"></div>
+            </section>
+
+            <!-- Validation Section -->
+            <section class="card" id="validationSection" style="display: none;">
+                <h2>✓ Validation Results</h2>
+                <div id="validationContent"></div>
+            </section>
+
+            <!-- Info Note -->
+            <section class="card info-note">
+                <h3>ℹ️ Next Steps</h3>
+                <p>After processing, your documents are automatically indexed and ready for querying.</p>
+                <p><strong>To query your documents:</strong> Visit the <a href="http://localhost:8002" target="_blank">Company Personal Assistant</a> to ask questions across all your uploaded documents.</p>
+            </section>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

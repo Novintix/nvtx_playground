@@ -1,0 +1,39 @@
+# Core AI Frameworks
+langchain
+langchain-community
+langchain-core
+langchain-google-genai
+langchain-huggingface
+langgraph
+
+# MCP (Model Context Protocol)
+fastmcp
+
+# Vector Store & Embeddings
+faiss-cpu
+sentence-transformers
+
+# Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+pymongo
+
+# Document Processing
+PyPDF2
+python-docx
+openpyxl
+Pillow
+
+# Azure OCR (Optional)
+azure-cognitiveservices-vision-computervision
+msrest
+
+# Utilities
+python-dotenv
+pydantic
+
+# LangChain Hub (for prompts)
+langchainhub

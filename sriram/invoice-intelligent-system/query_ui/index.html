@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Query System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Company Personal Assistant</h1>
+            <p class="subtitle">Ask questions about HR, Invoices, Policies, and more - AI intelligently finds the right information</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Query Section -->
+            <section class="card query-card">
+                <h2>💬 Ask Your Assistant</h2>
+                <div class="query-examples">
+                    <p class="examples-label">Example questions:</p>
+                    <div class="example-chips">
+                        <span class="chip" onclick="setQuery(this.textContent)">How many candidates applied this month?</span>
+                        <span class="chip" onclick="setQuery(this.textContent)">What's the total amount we paid to vendors?</span>
+                        <span class="chip" onclick="setQuery(this.textContent)">Show me employees in engineering department</span>
+                        <span class="chip" onclick="setQuery(this.textContent)">Which vendor has the highest invoice total?</span>
+                        <span class="chip" onclick="setQuery(this.textContent)">List all open job positions</span>
+                    </div>
+                </div>
+                
+                <div class="query-input-area">
+                    <textarea 
+                        id="queryInput" 
+                        placeholder="Ask me anything about your company data..." 
+                        rows="3"
+                    ></textarea>
+                    <button id="queryBtn" class="btn btn-primary">
+                        <span class="btn-icon">🤖</span>
+                        Ask Assistant
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="card results-card" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h2>📊 Results</h2>
+                    <span id="sourceBadge" class="source-badge"></span>
+                </div>
+                <div id="resultsContent" class="results-content"></div>
+            </section>
+
+            <!-- Info Cards -->
+            <div class="info-grid">
+                <div class="info-card mongodb-card">
+                    <div class="info-icon">👥</div>
+                    <h3>HR & People Data</h3>
+                    <p>Candidates, Employees, Positions, Departments</p>
+                    <ul class="info-list">
+                        <li>Hiring pipeline tracking</li>
+                        <li>Employee information</li>
+                        <li>Department analytics</li>
+                    </ul>
+                </div>
+
+                <div class="info-card rag-card">
+                    <div class="info-icon">📄</div>
+                    <h3>Financial Documents</h3>
+                    <p>Invoices, Vendors, Payments, Expenses</p>
+                    <ul class="info-list">
+                        <li>Invoice history search</li>
+                        <li>Vendor analysis</li>
+                        <li>Payment tracking</li>
+                    </ul>
+                </div>
+
+                <div class="info-card policy-card">
+                    <div class="info-icon">📋</div>
+                    <h3>Coming Soon</h3>
+                    <p>Policies, Procedures, Guidelines</p>
+                    <ul class="info-list">
+                        <li>Policy documents</li>
+                        <li>Company procedures</li>
+                        <li>Compliance guidelines</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
