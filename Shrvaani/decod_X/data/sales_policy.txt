@@ -1,23 +1,25 @@
-Sales & Discount Policy – Version 3.2
+Sales & Discount Policy – Version 4.0
 
 1. Discount Limits
 - Maximum standard discount allowed: 10%
-- Discounts above 10% require approval from Regional Sales Head.
-- Discounts above 15% are not permitted under any circumstances.
+- Discounts above 15% are STRICTLY PROHIBITED and are considered a compliance violation.
 
-2. Regional Performance Guidelines
-- High-competition regions (South, East) may request temporary discount flexibility.
-- Any flexibility beyond standard limits must be reviewed quarterly.
+2. Regional Exceptions
+- "South" Region is classified as High Competition.
+- Exception: South Region is permitted up to 12% discount to maintain market share.
+- "East" Region has NO exceptions. Standard 10% limit applies.
 
-3. Approval Process
-- Deals exceeding ₹5,00,000 in value require finance approval.
-- Approval turnaround time should not exceed 3 business days.
+3. Product-Specific Rules
+- Product-A: Focus on volume. Max discount 12% allowed globally (supersedes Regional limit).
+- Product-B: Premium product. Max discount 5% only.
+- Product-C: End-of-life. Clearance discounts up to 25% allowed ONLY with CFO approval.
 
-4. Policy Review History
-- In 2023, discount limits in South region were temporarily increased to 12%.
-- During this period, sales volume increased by approximately 9%.
-- The policy reverted to 10% in early 2024.
+4. Approval Authorities
+- < 10% : Auto-approved
+- 10% - 15% : Regional Manager Approval
+- > 15% : CFO Approval Required
+- > ₹50 Lakhs Deal Value : Finance Committee Approval
 
-5. Compliance Notes
-- Repeated breaches of discount policy must be escalated.
-- Policy violations are reviewed during quarterly audits.
+5. Review History
+- 2024: South region sales dropped despite 12% discounts.
+- 2025: East region showing signs of unauthorized discounting (16-20%).

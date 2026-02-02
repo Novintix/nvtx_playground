@@ -16,24 +16,32 @@ def load_financial_data(path: str):
             Document(
                 page_content=content,
                 metadata={
+                    "source": "finance",
                     "year": row["year"],
                     "region": row["region"],
-                    "product": row["product"],
-                    "source": "finance"
+                    "product": row["product"]
                 }
             )
         )
-
     return docs
 
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 def load_policy_data(path: str):
     with open(path, "r") as f:
         text = f.read()
 
-    return [
-        Document(
-            page_content=text,
-            metadata={"source": "policy"}
-        )
-    ]
+    # Enterprise-grade Chunking
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,      # ~100-150 words per chunk
+        chunk_overlap=50,    # Context continuity
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+    
+    chunks = splitter.create_documents(
+        texts=[text],
+        metadatas=[{"source": "policy"}]
+    )
+    
+    return chunks

@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-dotenv
+langchain
+langchain-community
+langchain-groq
+langgraph
+chromadb
+pandas
+numpy==1.26.4
+streamlit
+sentence-transformers
+langchain-huggingface
+pinecone-client
+langchain-pinecone
+langchain-huggingface
