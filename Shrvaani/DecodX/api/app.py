@@ -2,7 +2,8 @@ import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT_DIR))
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -10,7 +11,7 @@ from dotenv import load_dotenv
 from ingestion.ingest import load_financial_data, load_policy_data
 from vector_store.store import create_vector_store, retrieve_context
 from reasoning.graph import build_graph
-from MCP.guard import authorize, audit_log, log_request_approval, audit_exit
+from governance.guard import authorize, audit_log, log_request_approval, audit_exit
 
 # ---------------------------------------
 # ---------------------------------------

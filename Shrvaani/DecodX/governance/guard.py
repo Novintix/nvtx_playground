@@ -1,6 +1,8 @@
 import datetime
 from typing import Optional
 
+print("🛡️  MCP Guard Module Loaded Successfully")
+
 # Tool-level Access Control Matrix
 TOOL_PERMISSIONS = {
     "Guest": ["policy_only"],
