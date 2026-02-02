@@ -87,6 +87,9 @@ def generate_node(state: AgentState):
            - If they just said "Start" or "Help", pick the top 3 most frequent technical questions found in the search results.
            
         2. **Question Selection**: Select 3 distinct REAL interview questions from the [REAL INTERVIEW SOURCES].
+            Scan the [SOURCES] for questions asked at {company}.
+            **FILTERING RULE (CRITICAL):** - **IGNORE** simple fact-based questions like "Define Polymorphism."
+           - **SELECT ONLY** behavioral or project-based questions (e.g., "Describe a challenge...", "Tell me about a time you used...", "Explain the architecture of...").
         
         3. **Drafting the Solution**: For *each* question:
            - **Extract Source**: Copy the exact `URL` where you found this question.
@@ -100,10 +103,10 @@ def generate_node(state: AgentState):
         OUTPUT FORMAT:
        ### 🎯 Question [1/2/3]
         **❓ Real Question:** [Insert Question Text from Search]
-        **🔗 Source:** [Insert Exact URL from Search Result]/n
-        
-        **✅ Ideal Answer:** [First-person answer drafting using resume data and RESUME data alone. Don't try to build on knowledge outside the resume.]/n
-        
+        **🔗 Source:** [Insert Exact URL from Search Result]
+
+        **✅ Ideal Answer:** [First-person answer drafting using resume data and RESUME data alone. Don't try to build on knowledge outside the resume.]
+
         **💡 The Logic:** [Why this answer is good?]
         
         
