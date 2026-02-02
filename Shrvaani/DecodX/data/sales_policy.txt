@@ -1,0 +1,55 @@
+DecodX Global Operations - Commercial Sales and Discounting Policy (Corporate Governance v4.2)
+
+1. EXECUTIVE SUMMARY
+This policy defines the standard operating procedures (SOPs) for revenue recognition, discounting authorities, and commercial engagement across all global regions (North, South, East, West).
+
+2. STANDARD DISCOUNTING STRUCTURE
+2.1 Tier 1: Automated Authority (0% - 10%)
+- Account Executives (AEs) are authorized to apply discounts up to 10% without additional managerial oversight for standard contracts.
+- Condition: Contract duration must be at least 12 months.
+
+2.2 Tier 2: Management Approval (10.1% - 15%)
+- Requires written approval from the Regional Sales Director.
+- Condition: Must include a "Business Rationalization Note" (BRN) explaining competitive threats or strategic value.
+
+2.3 Tier 3: Executive/CFO Approval (15.1% - 25%)
+- Reserved for strategic enterprise deals. 
+- Requires approval from the Chief Financial Officer (CFO) and the Head of Global Sales.
+- Condition: Quarterly limit of 3 such deals per region.
+
+2.4 Prohibited Discounts (> 25%)
+- Discounts exceeding 25% are strictly prohibited under current revenue recognition guidelines (GAAP/IFRS compliance).
+
+3. REGIONAL MARKET EXCEPTIONS
+3.1 Highly Competitive Markets (South, East)
+- The "South" and "East" regions are designated as Stage 1 Competitive Zones.
+- Temporary Flex: Regional Managers in these zones may authorize up to 12% at the AE level for "Tier 1" products during Q3 and Q4.
+
+3.2 Emerging Markets (West)
+- Standard Tier 1 rules apply. No regional flex is authorized at this time.
+
+4. PRODUCT SPECIFIC GUIDELINES
+4.1 Product-A (Flagship)
+- Volume-based strategy. Standard rules apply.
+- Bundle Discount: An additional 2% may be applied if bundled with Product-C.
+
+4.2 Product-B (Premium Service)
+- High-margin product. Max discount capped at 5% regardless of authority levels.
+
+4.3 Product-C (Legacy/Clearance)
+- End-of-life status. Clearance discounts up to 30% are permitted ONLY with VP of Finance approval and must be recognized as non-recurring revenue.
+
+5. ENGAGEMENT AND LOGISTICS
+5.1 Deal Value Thresholds
+- Deals > $500,000 (USD): Require mandatory Legal review.
+- Deals > $1,000,000 (USD): Require mandatory Finance Committee review.
+
+5.2 Turnaround Times
+- Management Approval (Tier 2): 48 business hours.
+- Executive Approval (Tier 3): 5-7 business days.
+
+6. COMPLIANCE AND AUDIT
+6.1 Monthly Review
+The Corporate Strategy and Audit team will perform monthly reconciliations of all applied discounts.
+6.2 Non-Compliance
+Repeated unauthorized discounting will result in disciplinary action, including potential forfeiture of sales commissions for the participating unit.

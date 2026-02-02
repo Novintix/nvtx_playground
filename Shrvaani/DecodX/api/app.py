@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from ingestion.ingest import load_financial_data, load_policy_data
 from vector_store.store import create_vector_store, retrieve_context
 from reasoning.graph import build_graph
-from MCP.guard import authorize, audit_log
+from MCP.guard import authorize, audit_log, log_request_approval, audit_exit
 
 # ---------------------------------------
 # ---------------------------------------
@@ -51,8 +51,9 @@ st.caption("AI-assisted decision support · Grounded · Auditable")
 @st.cache_resource
 def init_vector_store():
     finance_docs = load_financial_data("data/sample_finance.csv")
-    policy_docs = load_policy_data("data/sales_policy.txt")
-    return create_vector_store(finance_docs + policy_docs)
+    sales_policy = load_policy_data("data/sales_policy.txt")
+    hr_policy = load_policy_data("data/hr_policy.txt")
+    return create_vector_store(finance_docs + sales_policy + hr_policy)
 
 def init_agent():
     return build_graph()
@@ -90,21 +91,32 @@ if query := st.chat_input("Ask a question (e.g. Why are sales lower in the South
     with st.chat_message("user"):
         st.markdown(query)
 
-    # 2. Audit & Governance
-    # Check permissions BEFORE processing
+    # 2. MCP Entry Point Audit
+    audit_log(query, user=user_id, role=user_role, outcome="Processing")
+    
+    # 3. Governance Check
     allowed = authorize(query, user_role=user_role)
-    audit_log(query, user=user_id, role=user_role, outcome="Allowed" if allowed else "Blocked")
-
+    
+    # 4. Log Approval Decision
     if not allowed:
+        reason = f"Role '{user_role}' not authorized for this query"
+        log_request_approval(query, user=user_id, role=user_role, approved=False, reason=reason)
+        
         error_msg = f"🚫 Access Denied: Your role '{user_role}' is not authorized to perform this action."
         st.error(error_msg)
         st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        
+        # Exit Audit
+        audit_exit(query, user=user_id, role=user_role, status="Blocked", response_summary="Access Denied")
         st.stop()
+    
+    # Request Approved
+    log_request_approval(query, user=user_id, role=user_role, approved=True)
 
-    # 3. Retrieve Context
+    # 5. Retrieve Context
     context = retrieve_context(vectordb, query)
 
-    # 4. Agent Reasoning
+    # 6. Agent Reasoning
     state = {
         "query": query,
         "financial_context": context["financial_context"],
@@ -131,7 +143,11 @@ if query := st.chat_input("Ask a question (e.g. Why are sales lower in the South
                 with st.expander("📎 Policy Evidence"):
                     st.write(context["policy_context"])
 
-    # 5. Save assistant response
+    # 7. MCP Exit Point Audit
+    response_length = len(response_content)
+    audit_exit(query, user=user_id, role=user_role, status="Success", response_summary=f"{response_length} chars")
+    
+    # 8. Save assistant response
     st.session_state.messages.append({
         "role": "assistant",
         "content": response_content,

@@ -11,6 +11,6 @@ numpy==1.26.4
 streamlit
 sentence-transformers
 langchain-huggingface
-pinecone-client
+pinecone
 langchain-pinecone
 langchain-huggingface
