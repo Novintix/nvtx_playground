@@ -1,12 +1,12 @@
-# embed_store.py
+#embed_store.py
 import os
 import faiss
 import pickle
 import torch
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from transformers import AutoTokenizer, AutoModel
-from langchain_core.embeddings import Embeddings  
+from langchain_core.embeddings import Embeddings
 
 from config import FAISS_PATH, EMBEDDING_MODEL
 from error_handler import handle_error, log_info
@@ -49,7 +49,7 @@ class PubMedBERTEmbeddings(Embeddings):
 
 
 class PubMedEmbeddingStore:
-    """Enhanced embedding store with LangChain integration"""
+    """Enhanced embedding store with FAISS and metadata"""
     
     def __init__(self):
         try:
@@ -58,11 +58,11 @@ class PubMedEmbeddingStore:
             self.embeddings = PubMedBERTEmbeddings()
             self.dimension = 768  # PubMedBERT dimension
             
-            # Native FAISS index
-            self.index = faiss.IndexFlatL2(self.dimension)
+            # Native FAISS index with Inner Product (for cosine similarity)
+            self.index = faiss.IndexFlatIP(self.dimension)
             self.metadata: List[Dict] = []
             
-            # Try to load existing index
+            # Load existing index
             self._load()
             
             log_info(f"✅ Loaded {len(self.metadata)} papers from index")
@@ -81,9 +81,11 @@ class PubMedEmbeddingStore:
             if not isinstance(abstract, str) or not abstract.strip():
                 return
             
-            # Get embedding
             embedding = self.embeddings.embed_query(abstract)
             embedding_array = np.array([embedding], dtype=np.float32)
+            
+            # L2 normalize for cosine similarity
+            faiss.normalize_L2(embedding_array)
             
             # Add to FAISS
             self.index.add(embedding_array)
@@ -114,6 +116,9 @@ class PubMedEmbeddingStore:
             embeddings = self.embeddings.embed_documents(texts)
             embeddings_array = np.array(embeddings, dtype=np.float32)
             
+            # L2 normalize
+            faiss.normalize_L2(embeddings_array)
+            
             # Add to FAISS
             self.index.add(embeddings_array)
             self.metadata.extend(metas)
@@ -124,29 +129,81 @@ class PubMedEmbeddingStore:
         except Exception as e:
             raise RuntimeError(handle_error(e, "build_index"))
     
-    def search(self, query: str, top_k: int = 5) -> Tuple[List[Dict], List[float]]:
-        """Search for similar papers"""
+    def search(self, query: str, top_k: int = 10) -> Tuple[List[Dict], List[float], List[float]]:
+        """
+        Search for similar papers
+        Returns: (papers, similarity_scores, uncertainties)
+        """
         try:
             if not isinstance(query, str) or not query.strip():
                 raise ValueError("Query must be non-empty string")
             
             if self.index.ntotal == 0:
-                return [], []
+                log_warning("⚠️ FAISS index is empty!")
+                return [], [], []
             
             # Get query embedding
             query_embedding = self.embeddings.embed_query(query)
             query_array = np.array([query_embedding], dtype=np.float32)
             
+            # L2 normalize
+            faiss.normalize_L2(query_array)
+            
             # Search
-            distances, indices = self.index.search(query_array, min(top_k, self.index.ntotal))
+            k = min(top_k, self.index.ntotal)
+            distances, indices = self.index.search(query_array, k)
             
-            papers = [self.metadata[i] for i in indices[0] if i < len(self.metadata)]
-            dists = distances[0].tolist()
+            papers = []
+            sim_scores = []
+            uncertainties = []
             
-            return papers, dists
+            for i, idx in enumerate(indices[0]):
+                if idx < len(self.metadata) and idx >= 0:
+                    papers.append(self.metadata[idx])
+                    # Convert distance to similarity score (FAISS returns inner product)
+                    sim_scores.append(float(distances[0][i]))
+                    uncertainties.append(self.metadata[idx].get("embedding_uncertainty", 0.0))
+            
+            log_info(f"🔍 FAISS search found {len(papers)} papers (index size: {self.index.ntotal})")
+            
+            return papers, sim_scores, uncertainties
             
         except Exception as e:
-            raise RuntimeError(handle_error(e, "search"))
+            error_msg = handle_error(e, "search")
+            log_warning(error_msg)
+            return [], [], []
+    
+    def calculate_evidence_confidence(self, papers: List[Dict], similarities: List[float]) -> float:
+        """Calculate aggregate confidence score for retrieved evidence"""
+        if not papers or not similarities:
+            return 0.0
+        
+        # Top similarity score (best match quality)
+        top_sim = max(similarities) if similarities else 0
+        
+        # Similarity spread (how well top results match vs bottom)
+        sim_range = max(similarities) - min(similarities) if len(similarities) > 1 else 0
+        
+        # Coverage (number of relevant papers found)
+        coverage = min(len([s for s in similarities if s > 0.5]) / 5, 1.0)
+        
+        # Year consistency (prefer recent consensus)
+        years = [p.get("year", 0) for p in papers if p.get("year", 0) > 0]
+        if years:
+            year_std = np.std(years) if len(years) > 1 else 0
+            year_consistency = max(0, 1.0 - year_std / 20)
+        else:
+            year_consistency = 0.5
+        
+        # Combined confidence
+        confidence = (
+            0.4 * top_sim +
+            0.2 * sim_range +
+            0.2 * coverage +
+            0.2 * year_consistency
+        )
+        
+        return min(confidence, 1.0)
     
     def _save(self):
         """Save index to disk"""
@@ -167,5 +224,7 @@ class PubMedEmbeddingStore:
                 self.index = faiss.read_index(str(index_path))
                 with open(metadata_path, "rb") as f:
                     self.metadata = pickle.load(f)
+                log_info(f"📂 Loaded FAISS index with {self.index.ntotal} vectors")
         except Exception as e:
             log_info(f"⚠️ Could not load existing index: {e}")
+ 

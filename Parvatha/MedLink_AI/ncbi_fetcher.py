@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure Entrez
-Entrez.email = os.getenv("NCBI_EMAIL")
+Entrez.email = os.getenv("NCBI_EMAIL", "user@example.com")
 if os.getenv("NCBI_API_KEY"):
     Entrez.api_key = os.getenv("NCBI_API_KEY")
 
@@ -35,21 +35,16 @@ class NCBIFetcher:
     ) -> List[Dict]:
         """
         Fetch papers from NCBI with intelligent caching
-        
-        Args:
-            query: Search query
-            max_results: Maximum papers to fetch
-            use_cache: Whether to use cached results
-            
-        Returns:
-            List of paper dictionaries
         """
         try:
-            # Validate query
+            # FIX 1: Strip quotes and clean query
             if not query or not isinstance(query, str):
                 raise ValueError("Query must be a non-empty string")
             
-            query = query.strip()
+            query = query.strip().strip('"').strip("'")
+            
+            if not query:
+                return []
             
             # Check cache first
             if use_cache and query_exists(query):
@@ -65,7 +60,7 @@ class NCBIFetcher:
             log_info(f"🔍 Cache MISS - Fetching from NCBI: '{query[:50]}...'")
             self.cache_misses += 1
             
-            # Search PubMed
+            # FIX 2: Better search strategy
             search_handle = Entrez.esearch(
                 db="pubmed",
                 term=query,
@@ -77,12 +72,22 @@ class NCBIFetcher:
             
             pmids = search_results.get("IdList", [])
             
+            # FIX 3: If no results, try with AND split (take first part)
+            if not pmids and " AND " in query:
+                simplified = query.split(" AND ")[0].strip()
+                if simplified != query:
+                    log_warning(f"🔁 Retrying with simplified query: {simplified}")
+                    return self.fetch_papers(simplified, max_results, use_cache=False)
             
-            if not pmids and "AND" in query:
-                simplified = query.split("AND")[0].strip()
-                log_warning(f"🔁 Retrying with simplified query: {simplified}")
+            # FIX 4: If still no results, try OR instead of AND
+            if not pmids and " AND " in query:
+                simplified = query.replace(" AND ", " OR ")
+                log_warning(f"🔁 Retrying with OR query: {simplified}")
                 return self.fetch_papers(simplified, max_results, use_cache=False)
-
+            
+            if not pmids:
+                log_warning(f"⚠️ No PMIDs found for query: {query}")
+                return []
             
             log_info(f"📚 Found {len(pmids)} papers, fetching details...")
             
@@ -101,7 +106,7 @@ class NCBIFetcher:
             log_warning(error_msg)
             
             # Try to return cached results as fallback
-            if query_exists(query):
+            if query and query_exists(query):
                 log_info("⚠️ Returning cached results as fallback")
                 return get_cached_papers(query)
             
@@ -110,7 +115,6 @@ class NCBIFetcher:
     def _fetch_paper_details(self, pmids: List[str], query: str) -> List[Dict]:
         """Fetch detailed paper information"""
         try:
-            # Fetch in batches to avoid timeouts
             batch_size = 50
             all_papers = []
             
@@ -180,20 +184,10 @@ class NCBIFetcher:
                 except (ValueError, TypeError):
                     year = 0
             elif "MedlineDate" in pub_date:
-                # Try to extract year from MedlineDate (e.g., "2023 Jan-Feb")
                 try:
                     year = int(pub_date["MedlineDate"][:4])
                 except (ValueError, TypeError):
                     year = 0
-            
-            # Extract authors
-            authors = []
-            author_list = article_data.get("AuthorList", [])
-            for author in author_list[:5]:  # First 5 authors
-                last_name = author.get("LastName", "")
-                initials = author.get("Initials", "")
-                if last_name:
-                    authors.append(f"{last_name} {initials}".strip())
             
             # Create paper dict
             paper = {
@@ -202,8 +196,8 @@ class NCBIFetcher:
                 "abstract": abstract_text,
                 "journal": journal_title,
                 "year": year,
-                "authors": authors,
-                "citations": 0,  # PubMed doesn't provide citation counts directly
+                "authors": [],
+                "citations": 0,
                 "query": query
             }
             
@@ -224,3 +218,4 @@ class NCBIFetcher:
             "total_requests": total,
             "hit_rate": round(hit_rate, 2)
         }
+ 

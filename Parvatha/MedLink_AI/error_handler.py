@@ -11,7 +11,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-
 def handle_error(error: Exception, context: Optional[str] = None) -> str:
     """
     Enhanced error handler with logging and user-friendly messages

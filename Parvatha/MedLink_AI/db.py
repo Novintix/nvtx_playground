@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
+import hashlib
 from config import SQLITE_DB
 
 Path("data").mkdir(exist_ok=True)
@@ -117,7 +118,8 @@ def get_cached_papers(query: str) -> List[Dict]:
     cur = conn.cursor()
     
     cur.execute("""
-        SELECT pmid, title, abstract, journal, year, citations, final_score
+        SELECT pmid, title, abstract, journal, year, citations, 
+        final_score
         FROM papers 
         WHERE query=?
         ORDER BY final_score DESC
@@ -145,10 +147,13 @@ def cache_papers(query: str, papers: List[Dict]):
     conn = get_connection()
     cur = conn.cursor()
 
+    # Generate hash for query
+    query_hash = hashlib.md5(query.strip().lower().encode()).hexdigest()
+
     # Insert query
     cur.execute(
-        "INSERT OR IGNORE INTO queries(query, paper_count) VALUES (?, ?)",
-        (query, len(papers))
+        "INSERT OR REPLACE INTO queries(query, query_hash, paper_count) VALUES (?, ?, ?)",
+        (query, query_hash, len(papers))
     )
 
     # Insert papers
@@ -221,7 +226,3 @@ def get_db_stats() -> Dict:
         "total_papers": paper_count,
         "unique_queries": unique_queries
     }
-    
-    
-    
-#python -c "from db import migrate_db; migrate_db()"
