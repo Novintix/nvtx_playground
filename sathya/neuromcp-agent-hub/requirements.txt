@@ -4,3 +4,5 @@ pydantic
 langgraph
 langchain
 python-dotenv
+streamlit
+requests
