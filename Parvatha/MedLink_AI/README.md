@@ -1,40 +1,51 @@
-🧬 MedLink AI – Medical Research Literature Navigator
+🧬 MedLink AI
 
-MedLink AI is an agentic, multi-hop Retrieval-Augmented Generation (RAG) system designed to help medical researchers efficiently explore, connect, and synthesize biomedical literature from PubMed using real research papers.
+Medical Research Literature Navigator using Multi-Hop RAG
 
-🚀 What It Does
+MedLink AI is an agentic, evidence-grounded Retrieval-Augmented Generation (RAG) system that helps medical researchers explore, connect, and synthesize biomedical literature from PubMed using real research papers.
 
-Fetches real biomedical research papers from PubMed (NCBI)
+Built to reduce literature review time, surface hidden connections, and generate mechanistic, evidence-based answers — without hallucinations.
 
-Performs semantic + keyword-based retrieval
+✨ Key Capabilities
 
-Uses multi-hop reasoning to discover hidden connections across papers
+🔍 Hybrid Retrieval
 
-Re-ranks evidence using scientific relevance, recency, and journal quality
+Semantic search (PubMedBERT + FAISS)
 
-Generates evidence-grounded, mechanistic answers using LLMs
+Keyword-based PubMed retrieval
 
-Displays answers with supporting research papers and justification
+🔗 Multi-Hop Reasoning
 
-🧠 Core Features
+Iterative query expansion using LangGraph
 
-Hybrid RAG: FAISS-based semantic search + exact keyword retrieval
+Discovers non-obvious cross-paper links
 
-Multi-Hop Reasoning: Iterative query expansion across evidence
+🧠 Evidence-Grounded Answers
 
-Evidence-Based Answers: No hallucinations, grounded in abstracts
+Generated strictly from retrieved abstracts
 
-Justification Scoring: Confidence score backed by research papers
+No fabricated citations
 
-Caching & Memory: SQLite-backed query and paper caching
+⚖️ Intelligent Re-Ranking
 
-Professional UI: Streamlit interface for researchers
+Relevance, recency, journal quality, citation signals
 
-🛠️ Tech Stack
+📊 Justification Score
 
-Backend / AI
+Confidence score backed by specific research papers
 
-Python 3.12
+💾 Persistent Caching
+
+SQLite-based query & paper cache
+
+🖥️ Professional UI
+
+Streamlit interface designed for medical research workflows
+
+🏗️ Tech Stack
+AI & Orchestration
+
+Python
 
 LangChain
 
@@ -42,19 +53,21 @@ LangGraph (agent orchestration)
 
 Retrieval-Augmented Generation (RAG)
 
-FAISS (vector search)
+Models
 
-PubMedBERT (biomedical embeddings)
+PubMedBERT – biomedical embeddings
 
-Groq API (LLaMA 3.1 models for reasoning)
+LLaMA 3.1 (Groq API) – reasoning & synthesis
 
-Data Sources
+Search & Storage
+
+FAISS – vector similarity search
+
+SQLite – caching, metadata, scoring
+
+Data Source
 
 PubMed / NCBI (Biopython Entrez API)
-
-Storage
-
-SQLite (query cache, paper metadata, scores, history)
 
 Frontend
 
