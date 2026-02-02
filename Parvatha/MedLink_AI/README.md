@@ -1,74 +1,57 @@
-🧬 MedLink AI
+# 🧬 MedLink AI  
+**Medical Research Literature Navigator using Multi-Hop RAG**
 
-Medical Research Literature Navigator using Multi-Hop RAG
+MedLink AI is an **agentic, evidence-grounded Retrieval-Augmented Generation (RAG) system** that helps medical researchers explore, connect, and synthesize biomedical literature from **PubMed** using real research papers.
 
-MedLink AI is an agentic, evidence-grounded Retrieval-Augmented Generation (RAG) system that helps medical researchers explore, connect, and synthesize biomedical literature from PubMed using real research papers.
+> Built to reduce literature review time, surface hidden connections, and generate mechanistic, evidence-based answers — without hallucinations.
 
-Built to reduce literature review time, surface hidden connections, and generate mechanistic, evidence-based answers — without hallucinations.
+---
 
-✨ Key Capabilities
+## ✨ Key Capabilities
 
-🔍 Hybrid Retrieval
+- 🔍 **Hybrid Retrieval**
+  - Semantic search (PubMedBERT + FAISS)
+  - Keyword-based PubMed retrieval
+- 🔗 **Multi-Hop Reasoning**
+  - Iterative query expansion using LangGraph
+  - Discovers non-obvious cross-paper links
+- 🧠 **Evidence-Grounded Answers**
+  - Generated strictly from retrieved abstracts
+  - No fabricated citations
+- ⚖️ **Intelligent Re-Ranking**
+  - Relevance, recency, journal quality, citation signals
+- 📊 **Justification Score**
+  - Confidence score backed by specific research papers
+- 💾 **Persistent Caching**
+  - SQLite-based query & paper cache
+- 🖥️ **Professional UI**
+  - Streamlit interface designed for medical research workflows
 
-Semantic search (PubMedBERT + FAISS)
+---
 
-Keyword-based PubMed retrieval
+## 🏗️ Tech Stack
 
-🔗 Multi-Hop Reasoning
+### AI & Orchestration
+- **Python**
+- **LangChain**
+- **LangGraph** (agent orchestration)
+- **Retrieval-Augmented Generation (RAG)**
 
-Iterative query expansion using LangGraph
+### Models
+- **PubMedBERT** – biomedical embeddings  
+- **LLaMA 3.1 (Groq API)** – reasoning & synthesis  
 
-Discovers non-obvious cross-paper links
+### Search & Storage
+- **FAISS** – vector similarity search  
+- **SQLite** – caching, metadata, scoring  
 
-🧠 Evidence-Grounded Answers
+### Data Source
+- **PubMed / NCBI** (Biopython Entrez API)
 
-Generated strictly from retrieved abstracts
+### Frontend
+- **Streamlit** (custom medical-themed UI)
 
-No fabricated citations
+---
 
-⚖️ Intelligent Re-Ranking
+## 🧠 How It Works (High Level)
 
-Relevance, recency, journal quality, citation signals
-
-📊 Justification Score
-
-Confidence score backed by specific research papers
-
-💾 Persistent Caching
-
-SQLite-based query & paper cache
-
-🖥️ Professional UI
-
-Streamlit interface designed for medical research workflows
-
-🏗️ Tech Stack
-AI & Orchestration
-
-Python
-
-LangChain
-
-LangGraph (agent orchestration)
-
-Retrieval-Augmented Generation (RAG)
-
-Models
-
-PubMedBERT – biomedical embeddings
-
-LLaMA 3.1 (Groq API) – reasoning & synthesis
-
-Search & Storage
-
-FAISS – vector similarity search
-
-SQLite – caching, metadata, scoring
-
-Data Source
-
-PubMed / NCBI (Biopython Entrez API)
-
-Frontend
-
-Streamlit (custom medical-themed UI)
