@@ -1,8 +1,21 @@
+# Core Framework
 fastapi
 uvicorn[standard]
 pydantic
+
+# LangChain & LangGraph
 langgraph
 langchain
-python-dotenv
-streamlit
+langchain-core
+langchain-groq
+
+# HTTP & API
+httpx
 requests
+
+# UI
+streamlit
+
+# Utilities
+python-dotenv
+jsonschema

@@ -6,3 +6,32 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# OAuth tokens (sensitive!)
+.tokens.json
+
+# Runtime state
+run_state.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/

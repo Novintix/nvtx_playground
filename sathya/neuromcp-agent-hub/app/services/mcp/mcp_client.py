@@ -16,7 +16,6 @@ class MCPClient:
     async def list_tools(self) -> Dict[str, List[Dict[str, Any]]]:
         """List all available MCP tools"""
         # The endpoint doesn't support listing, so use hardcoded tools
-        print(f"Using hardcoded tool list (MCP server doesn't provide tools/list)")
         return {"tools": get_default_tools()}
 
     async def call_tool(self, name: str, args: dict):
