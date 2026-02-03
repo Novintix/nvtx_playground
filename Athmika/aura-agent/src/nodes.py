@@ -6,7 +6,7 @@ from src.retrieval import get_retriever
 from src.tools import web_search_tool
 
 # Initialize LLM
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.6)
+llm = ChatGroq(model = "llama-3.3-70b-versatile", temperature=0.6)
 
 def retrieve_node(state: AgentState):
     """
@@ -66,6 +66,7 @@ def generate_node(state: AgentState):
     context = state["retrieved_docs"]
     messages = state["messages"]
     company = state["target_company"]
+    last_user_msg = messages[-1].content
     current_depth = state.get("topic_depth", 0)
     new_depth = current_depth
     
@@ -73,46 +74,113 @@ def generate_node(state: AgentState):
     conversation_length = len(messages)
     
     if "trainer" in mode.lower():
-        # --- TRAINER / MENTOR MODE ---
+        # --- 1. INTENT ROUTER (The Switch) ---
+        # We classify if the user wants internal help (Resume) or external info (Market).
         system_prompt = f"""
-        You are AURA, an Expert Technical Interview Mentor for students.
+        Classify the user's intent into exactly one of these two categories:
         
-        INPUT DATA:
-        1. **RESUME CONTEXT**: The candidate's actual projects and skills.
-        2. **REAL INTERVIEW SOURCES**: A list of search results with "URL" and "CONTENT" containing real questions asked at {company}.
+        1. "RESUME_HELP": The user wants help explaining, summarizing, or pitching THEIR OWN specific projects/skills (e.g. "Explain WellGenix", "Help me with my intro", "How do I talk about Python?").
+        2. "MARKET_INFO": The user wants to know about external interview questions, company trends, or generic question banks (e.g. "Start", "What does CTS ask?", "Common questions").
         
-        TASK:
-        1. **Topic Identification**: Look at the user's last message. 
-           - If they asked for specific topics (e.g., "Python questions"), filter for those.
-           - If they just said "Start" or "Help", pick the top 3 most frequent technical questions found in the search results.
-           
-        2. **Question Selection**: Select 3 distinct REAL interview questions from the [REAL INTERVIEW SOURCES].
-            Scan the [SOURCES] for questions asked at {company}.
-            **FILTERING RULE (CRITICAL):** - **IGNORE** simple fact-based questions like "Define Polymorphism."
-           - **SELECT ONLY** behavioral or project-based questions (e.g., "Describe a challenge...", "Tell me about a time you used...", "Explain the architecture of...").
+        USER MESSAGE: "{messages[-1].content}"
         
-        3. **Drafting the Solution**: For *each* question:
-           - **Extract Source**: Copy the exact `URL` where you found this question.
-           - **Draft Answer**: Write a "Winning Answer" in the first person ("I...") using the [RESUME CONTEXT]. 
-           - **Explain Logic**: Briefly explain *why* this answer is strong (e.g., "It mentions your specific project X...").
-        
-        STRICT RULES:
-        - If the resume does not have enough info to answer a specific question, admit it in the "Ideal Answer" section and suggest what project/skill they should add.
-        - Do NOT invent URLs. Use the ones provided in the search results.
-        
-        OUTPUT FORMAT:
-       ### 🎯 Question [1/2/3]
-        **❓ Real Question:** [Insert Question Text from Search]
-        **🔗 Source:** [Insert Exact URL from Search Result]
-
-        **✅ Ideal Answer:** [First-person answer drafting using resume data and RESUME data alone. Don't try to build on knowledge outside the resume.]
-
-        **💡 The Logic:** [Why this answer is good?]
-        
-        
-        CONTEXT:
-        {context}
+        Reply ONLY with the category name.
         """
+        # Call LLM to decide
+        intent = llm.invoke(system_prompt).content.strip().upper()
+        
+        # --- 2. BRANCHING BASED ON INTENT ---
+
+        if "RESUME_HELP" in intent:
+            # === PATH A: RESUME COACH (Internal Only, NO URLs) ===
+            system_prompt = f"""
+            You are AURA, a strict Resume Strategy Coach.
+            
+            INPUT DATA:
+            1. **RESUME**: Candidate's actual projects.
+            2. **TOPIC**: User wants to explain "{last_user_msg}". if the project is not in the resume, say "NOT_FOUND".
+            
+            TASK:
+            1. **VERIFY**: Search the [RESUME CONTEXT] for the specific project/skill mentioned in the USER QUERY.
+            2. **DECIDE**:
+               - **IF FOUND**: Draft a pitch script using ONLY the resume details.
+                    **Simulate a Question:** Generate a realistic technical or behavioral question an interviewer would ask about this specific project/skill.
+                    **Draft the Answer:** Write a "Winning Answer" using ONLY facts from the resume.
+                    **Analyze:** Explain the logic.
+               - **IF NOT FOUND**: You MUST refuse to answer. Do not use general knowledge.
+            
+            STRICT RULES:
+            - **NO URLs:** Do NOT include a "Source" or "Link".
+            - **NO HALLUCINATION:** Use strictly the tools/tech listed in the resume.
+            🚨 TECH STACK PRECISION RULES:
+            - **EXACT TERMINOLOGY:** Do NOT generalize tools.
+              - If resume says "FlutterFlow", say "FlutterFlow". Do NOT say "Flutter".
+              - If resume says "Java", do NOT say "SpringBoot" unless explicitly listed.
+            - **NO HALLUCINATION:** Only mention features actually listed in the context.
+            
+            OUTPUT FORMAT (STRICTLY ONLY IF PROJECT FOUND):
+            
+            ### 🎯 Explaining "{last_user_msg}"
+            
+            **❓ Anticipated Question:** [Generate a likely question, e.g., "Can you walk me through..."]
+            
+            **✅ Ideal Answer:** [Draft the perfect First-Person response]
+            
+            **💡 The Logic:** [1 sentence summary]
+            
+            **🚀 Why this is strong:**
+            1. **Technical Depth:** [Mention specific tools used]
+            2. **Role:** [Highlight individual contribution]
+            3. **Impact:** [Mention results/problem solved]
+            
+             OUTPUT FORMAT (IF PROJECT NOT FOUND):
+            ### ⚠️ Project Missing
+            **Analysis:** I scanned your resume but could not find any mention of the project "[Insert Extracted Project Name Here]". 
+            
+            **Advice:** As a strict resume coach, I only help you pitch projects you have actually listed. Please upload a new resume containing this project.
+
+            CONTEXT:
+            {context}
+            """
+            new_depth = 0
+            
+        else:
+            # === PATH B: MARKET SCOUT (Strict "Real Question" Filter) ===
+            system_prompt = f"""
+            You are AURA, an Expert Technical Interview Mentor.
+            
+            INPUT DATA:
+            1. **RESUME CONTEXT**: The candidate's actual projects and skills.
+            2. **REAL INTERVIEW SOURCES**: Search results for {company} interviews.
+            
+            TASK:
+            Find 3 specific interview questions that are **EXPLICITLY QUOTED** in the snippets.
+            
+            🚨 CRITICAL RULES FOR CITATION:
+            1. **VERBATIM ONLY:** You can only list a question if you can find the *exact sentence* in the text.
+               - ❌ Bad: Snippet says "asked about SQL joins" -> You write "What are types of joins?" (Hallucination)
+               - ✅ Good: Snippet says "Interviewer asked: 'Explain Left Join vs Inner Join'" -> You write "Explain Left Join vs Inner Join".
+            
+            2. **IF NO EXACT QUOTES FOUND:** - Do NOT invent questions.
+               - Instead, summarize the *topics* mentioned in the snippet.
+               - Format: "Topic: [Topic Name] (Exact question not listed)"
+            
+            3. **SOURCE MATCHING:** The URL you list MUST be the one where that specific text came from.
+
+
+            OUTPUT FORMAT:
+            ### 🎯 Question [1/2/3]
+            **❓ Real Question:** [Insert Technical/Behavioral Question found in text]
+            **🔗 Source:** [Insert Exact URL]
+
+            **✅ Ideal Answer:** [First-person answer drafting using ONLY resume data]
+
+            **💡 The Logic:** [Why this answer is good - not first person perspective]
+            
+            CONTEXT:
+            {context}
+            """
+            
         new_depth = 0
 
     else:
@@ -136,7 +204,7 @@ def generate_node(state: AgentState):
         # Phase 2: The Grill (Subsequent Turns)
         else:
             if current_depth >= 2:
-                instruction = "TRANSITION: The candidate has answerd enough on this move. Ensure a smooth transistion to a DIFFERENT topic about their skills in their resume."
+                instruction = "🛑 TOPIC SWITCH: You have asked enough about this. STRICTLY ask a NEW, UNRELATED question about a DIFFERENT skill in the resume."
                 new_depth = 0
             else:
                 instruction = "DRILL DEEP: The candidate just answered. Pick ONE specific technical detail they mentioned and ask a 'Why' or 'How' follow-up question."

@@ -88,6 +88,9 @@ for message in st.session_state.messages:
 # --- 4. INTERACTION ---
 user_input = st.chat_input("Type your answer or ask a question...")
 
+if "topic_depth" not in st.session_state:
+    st.session_state.topic_depth = 0
+
 if user_input:
     st.chat_message("user", avatar="🧑‍💻").markdown(user_input)
     st.session_state.messages.append(HumanMessage(content=user_input))
@@ -98,7 +101,8 @@ if user_input:
         "target_company": target_company,
         "mode": "trainer" if "Trainer" in mode else "interviewer",
         "resume_text": st.session_state.resume_text, # Pass the full text
-        "retrieved_docs": "" 
+        "retrieved_docs": "", 
+        "topic_depth": st.session_state.topic_depth
     }
 
     with st.chat_message("assistant", avatar="✨"):
@@ -107,6 +111,8 @@ if user_input:
                 from src.graph import graph
                 response = graph.invoke(current_state)
                 ai_response = response["messages"][-1].content
+                st.session_state.topic_depth = response.get("topic_depth", 0)
+                print(f"DEBUG: Topic Depth is now {st.session_state.topic_depth}")
             except Exception as e:
                 ai_response = f"⚠️ System Error: {str(e)}"
             
