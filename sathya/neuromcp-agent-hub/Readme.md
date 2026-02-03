@@ -28,6 +28,7 @@ A production-ready, multi-agent system that orchestrates complex workflows acros
 - **Rate limiting** (per-tool and global request throttling)
 
 ---
+<img width="1535" height="742" alt="diagram-export-3-2-2026-11_43_26-pm" src="https://github.com/user-attachments/assets/867543a3-27c7-4357-8d46-014da91436a0" />
 
 ## 📁 Project Structure
 
