@@ -1,11 +1,7 @@
-#multihop_rag.py
-"""
-Enhanced Multi-Hop RAG with Domain Validation and Uncertainty Quantification
-LangGraph-based agent workflow for MedGuard Evidence
-"""
-
 from typing import List, Dict, Tuple, TypedDict, Optional
 from langgraph.graph import StateGraph, END
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 from ncbi_fetcher import NCBIFetcher
 from embed_store import PubMedEmbeddingStore
@@ -23,6 +19,7 @@ class RAGState(TypedDict):
     # Input
     query: str
     original_query: str
+    response_mode: str 
     
     # Validation
     validation_result: Optional[ValidationResult]
@@ -103,7 +100,6 @@ def validate_query_node(state: RAGState) -> RAGState:
         error_msg = handle_error(e, "validate_query_node")
         log_warning(error_msg)
         state["error"] = error_msg
-        # Fail open - allow query to proceed if validator breaks
         state["is_validated"] = True
         state["should_answer"] = True
     
@@ -163,8 +159,16 @@ def fetch_papers_node(state: RAGState) -> RAGState:
         pubmed_query = generator.normalize_pubmed_query(query)
         log_info(f"🔎 Normalized query: '{pubmed_query}'")
         
-        # Fetch papers
-        papers = fetcher.fetch_papers(pubmed_query, max_results=15)
+        # Fetch papers - DYNAMIC based on mode
+        response_mode = state.get("response_mode", "Detailed")
+        mode_config = {
+            "Concise": 8,
+            "Detailed": 15,
+            "Comprehensive": 25
+        }
+        max_results = mode_config.get(response_mode, 15)
+        
+        papers = fetcher.fetch_papers(pubmed_query, max_results=max_results)
         
         if not papers:
             log_warning("⚠️ No papers fetched from NCBI")
@@ -351,6 +355,124 @@ def should_continue(state: RAGState) -> str:
 
 
 # ==================================================
+# NEW: Dynamic Consistency Calculator
+# ==================================================
+def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
+    """
+    Calculate consistency metrics based on actual semantic similarity between papers.
+    Returns detailed consistency analysis for dynamic assessment.
+    """
+    if not papers or len(papers) < 2:
+        return {
+            "consistency_score": 1.0 if papers else 0.0,
+            "agreement_level": "High" if papers else "Insufficient",
+            "agreement_details": [],
+            "contradictions": [],
+            "avg_similarity": 0.0,
+            "min_similarity": 0.0,
+            "divergent_papers": []
+        }
+    
+    # Get embeddings from store
+    store = get_component("store")
+    
+    paper_embeddings = []
+    valid_papers = []
+    
+    for p in papers:
+        emb = store.get_embedding(p["pmid"])
+        if emb is not None:
+            paper_embeddings.append(emb)
+            valid_papers.append(p)
+    
+    # Calculate pairwise similarities
+    if len(paper_embeddings) < 2:
+        return {
+            "consistency_score": 0.5,
+            "agreement_level": "Unknown",
+            "agreement_details": [],
+            "contradictions": [],
+            "avg_similarity": 0.0,
+            "min_similarity": 0.0,
+            "divergent_papers": []
+        }
+    
+    embeddings_matrix = np.array(paper_embeddings)
+    similarity_matrix = cosine_similarity(embeddings_matrix)
+    
+    # Get upper triangle (excluding diagonal)
+    upper_tri_indices = np.triu_indices(len(paper_embeddings), k=1)
+    pairwise_sims = similarity_matrix[upper_tri_indices]
+    
+    avg_sim = float(np.mean(pairwise_sims))
+    min_sim = float(np.min(pairwise_sims))
+    max_sim = float(np.max(pairwise_sims))
+    std_sim = float(np.std(pairwise_sims))
+    
+    # Determine agreement level based on distribution
+    if avg_sim >= 0.85 and std_sim < 0.1:
+        agreement_level = "Very High"
+    elif avg_sim >= 0.75 and std_sim < 0.15:
+        agreement_level = "High"
+    elif avg_sim >= 0.65:
+        agreement_level = "Moderate"
+    elif avg_sim >= 0.5:
+        agreement_level = "Partial"
+    else:
+        agreement_level = "Low"
+    
+    # Find divergent papers (those with low average similarity to others)
+    divergent_papers = []
+    contradictions = []
+    
+    for i, paper in enumerate(valid_papers):
+        # Average similarity of this paper to all others
+        avg_to_others = np.mean([similarity_matrix[i][j] for j in range(len(paper_embeddings)) if i != j])
+        
+        if avg_to_others < 0.5:
+            divergent_papers.append({
+                "title": paper.get("title", "Unknown")[:60],
+                "pmid": paper.get("pmid"),
+                "avg_similarity": float(avg_to_others)
+            })
+        
+        # Check for specific contradictions (very low similarity pairs)
+        for j in range(i + 1, len(valid_papers)):
+            if similarity_matrix[i][j] < 0.4:
+                contradictions.append({
+                    "paper_a": valid_papers[i].get("title", "Unknown")[:50],
+                    "paper_b": valid_papers[j].get("title", "Unknown")[:50],
+                    "similarity": float(similarity_matrix[i][j])
+                })
+    
+    # Generate agreement details
+    agreement_details = []
+    for i, paper in enumerate(valid_papers[:3]):
+        if i == 0:
+            label = "Strong support"
+        elif i == 1:
+            label = "Supports findings"
+        else:
+            label = "Consistent with mechanism"
+        agreement_details.append({
+            "title": paper.get("title", "Unknown")[:60],
+            "agreement": label
+        })
+    
+    return {
+        "consistency_score": round(avg_sim, 3),
+        "agreement_level": agreement_level,
+        "agreement_details": agreement_details,
+        "contradictions": contradictions,
+        "avg_similarity": round(avg_sim, 3),
+        "min_similarity": round(min_sim, 3),
+        "max_similarity": round(max_sim, 3),
+        "similarity_std": round(std_sim, 3),
+        "divergent_papers": divergent_papers
+    }
+
+
+# ==================================================
 # Node 5: Generate Answer (Enhanced with Uncertainty)
 # ==================================================
 def generate_answer_node(state: RAGState) -> RAGState:
@@ -360,8 +482,9 @@ def generate_answer_node(state: RAGState) -> RAGState:
         papers = state.get("ranked_papers", [])
         confidence = state.get("retrieval_confidence", 0.5)
         contradictions = state.get("contradictions", [])
+        response_mode = state.get("response_mode", "Detailed")
         
-        log_info("🧠 Generating structured answer...")
+        log_info(f"🧠 Generating structured answer (mode: {response_mode})...")
         
         if not papers:
             state["final_answer"] = "No relevant papers found to answer this query."
@@ -370,23 +493,32 @@ def generate_answer_node(state: RAGState) -> RAGState:
         
         generator = get_component("generator")
         
-        # Generate structured answer with uncertainty
+        # Generate structured answer with uncertainty and MODE
         result = generator.generate_structured_answer(
             query=original_query,
             papers=papers,
-            retrieval_confidence=confidence
+            retrieval_confidence=confidence,
+            response_mode=response_mode
         )
         
         state["generated_answer"] = result
         state["should_answer"] = result.should_answer
         
-        # Format final answer
+        # Calculate DYNAMIC consistency based on paper embeddings
+        consistency_analysis = calculate_dynamic_consistency(papers)
+        
+        # Format final answer with MODE and DYNAMIC consistency
         if result.should_answer:
-            state["final_answer"] = _format_success_answer(result, contradictions)
+            state["final_answer"] = _format_success_answer(
+                result, 
+                consistency_analysis,
+                papers, 
+                response_mode
+            )
         else:
             state["final_answer"] = _format_low_confidence_answer(result)
         
-        log_info(f"✅ Answer generated (confidence: {result.confidence_score:.3f}, grade: {result.evidence_grade.value})")
+        log_info(f"✅ Answer generated (confidence: {result.confidence_score:.3f}, consistency: {consistency_analysis['consistency_score']:.3f})")
         
     except Exception as e:
         error_msg = handle_error(e, "generate_answer_node")
@@ -398,71 +530,181 @@ def generate_answer_node(state: RAGState) -> RAGState:
     return state
 
 
-def _format_success_answer(result: GeneratedAnswer, contradictions: List[Dict]) -> str:
-    """Format successful answer with full details"""
+# ==================================================
+# FORMATTING - 7 MANDATORY SECTIONS ONLY (FIXED)
+# ==================================================
+
+def _format_success_answer(result: GeneratedAnswer, consistency_analysis: Dict, papers: List[Dict], mode: str = "Detailed") -> str:
+    """Format successful answer - 7 MANDATORY SECTIONS ONLY with DYNAMIC consistency"""
     
-    output = f"""## {result.mechanistic_explanation.split('\\n')[0] if result.mechanistic_explanation else 'Analysis'}
+    # 1. EXECUTIVE SUMMARY (Answer Reasoning)
+    output = f"""## 📋 Executive Summary
 
-**Mechanistic Explanation:**
-{result.mechanistic_explanation}
-
-**Overall Conclusion:**
 {result.overall_conclusion}
 
 ---
 
-**Evidence Grade:** {result.evidence_grade.value}
-**Confidence Score:** {result.confidence_score:.2f}
+## 🔬 Key Findings
 
-**Justification Rationale:**
-{result.justification_rationale}
+"""
+    
+    # 2. KEY FINDINGS (Bullet points)
+    findings = _extract_key_findings(result.mechanistic_explanation, max_findings=5)
+    for finding in findings:
+        output += f"• {finding}\n"
+    
+    # 3. MECHANISTIC EXPLANATION
+    output += f"""
+---
 
-**Key Supporting Papers:**"""
+## 🧬 Mechanistic Explanation
+
+{result.mechanistic_explanation}
+
+"""
     
-    for i, paper in enumerate(result.key_papers, 1):
-        output += f"\\n{i}. **{paper['title']}** — {paper['support']}"
+    # 4 & 5. CONSISTENCY + CONFIDENCE SCORE (FIXED - DYNAMIC)
+    output += _generate_consistency_section(consistency_analysis, papers, result.confidence_score)
     
-    if contradictions:
-        output += "\\n\\n⚠️ **Potential Contradictions Detected:**"
-        for c in contradictions[:3]:
-            output += f"\\n- {c['description']}"
-    
-    if result.uncertainty_flags:
-        output += f"\\n\\n⚠️ **Uncertainty Flags:** {', '.join(result.uncertainty_flags)}"
-    
-    output += f"\\n\\n📊 **Limitations:** {result.limitations}"
+    # 6. REFERENCE PAPERS - REMOVED FROM HERE (will be added in app.py to avoid duplication)
+    # The reference papers section is now handled in app.py to prevent duplication
     
     return output
 
 
-def _format_low_confidence_answer(result: GeneratedAnswer) -> str:
-    """Format low confidence warning"""
+def _generate_consistency_section(consistency_analysis: Dict, papers: List[Dict], confidence_score: float) -> str:
+    """
+    Generate consistency section with DYNAMIC assessment based on actual paper similarities.
+    Score and text are now aligned.
+    """
+    agreement_level = consistency_analysis.get("agreement_level", "Unknown")
+    consistency_score = consistency_analysis.get("consistency_score", 0.0)
+    min_sim = consistency_analysis.get("min_similarity", 0.0)
+    contradictions = consistency_analysis.get("contradictions", [])
+    divergent_papers = consistency_analysis.get("divergent_papers", [])
     
-    return f"""⚠️ **INSUFFICIENT CONFIDENCE TO ANSWER**
+    # NEW: Detect confidence-consistency misalignment
+    confidence_consistency_gap = abs(confidence_score - consistency_score)
+    alignment_warning = ""
+    if confidence_consistency_gap > 0.15:
+        alignment_warning = f"\n\n⚠️ **Note:** Confidence ({confidence_score:.2f}) and consistency ({consistency_score:.2f}) show significant divergence. This may indicate the evidence is semantically similar but limited in other quality metrics (citations, recency, or evidence grade)."
+    
+    # Determine status and description based on actual consistency score
+    if agreement_level == "Very High":
+        status_icon = "✅"
+        status_text = "Strong Consensus"
+        description = "All papers show strong semantic agreement with minimal divergence."
+    elif agreement_level == "High":
+        status_icon = "✅"
+        status_text = "High Agreement"
+        description = "Papers largely agree on main findings with minor variations."
+    elif agreement_level == "Moderate":
+        status_icon = "⚠️"
+        status_text = "Moderate Agreement"
+        description = "Most papers align, but some differences in emphasis or scope exist."
+    elif agreement_level == "Partial":
+        status_icon = "⚠️"
+        status_text = "Partial Agreement"
+        description = "Mixed evidence with some papers supporting different aspects or conclusions."
+    else:
+        status_icon = "🚫"
+        status_text = "Low Agreement / Disagreement"
+        description = "Significant divergence between papers. Results should be interpreted with caution."
+    
+    # Build agreement details dynamically
+    agreement_details = []
+    for detail in consistency_analysis.get("agreement_details", []):
+        agreement_details.append(f"• {detail['title']}... - {detail['agreement']}")
+    
+    output = f"""---
 
-**Confidence Score:** {result.confidence_score:.2f} (required: {MIN_ANSWER_CONFIDENCE})
+## {status_icon} Consistency Assessment
 
-**Evidence Grade:** {result.evidence_grade.value}
+**Status:** {status_text} (Score: {consistency_score:.2f})
 
-**Available Information:**
-{result.overall_conclusion}
-
-**Why Confidence is Low:**
-{result.justification_rationale}
-
-**Limitations:**
-{result.limitations}
+**Description:** {description}
+"""
+    
+    # Add alignment warning if detected
+    output += alignment_warning
+    
+    # Add agreement details if available
+    if agreement_details:
+        output += "\n\n**Agreement Details:**\n"
+        for detail in agreement_details[:3]:
+            output += f"{detail}\n"
+    
+    # Add divergence warnings if applicable
+    if divergent_papers:
+        output += "\n**Divergent Sources:**\n"
+        for div in divergent_papers[:2]:
+            output += f"• {div['title']}... (similarity: {div['avg_similarity']:.2f})\n"
+    
+    # Add contradictions if found
+    if contradictions:
+        output += "\n**Contradictions Found:**\n"
+        for i, c in enumerate(contradictions[:2], 1):
+            output += f"• Paper pair shows low agreement (sim: {c['similarity']:.2f})\n"
+    
+    # Confidence score with context
+    output += f"""
 
 ---
 
-**Recommendation:**
-The available evidence is insufficient for a reliable answer. Consider:
-1. Refining your query with more specific medical terms
-2. Checking if this is an emerging research area with limited literature
-3. Consulting domain experts for clinical decisions
+## 📊 Confidence Score
 
-**Papers Found (low relevance):**
-""" + "\\n".join([f"- {p['title'][:80]}..." for p in result.key_papers[:3]])
+**{confidence_score:.2f}/1.0** - Based on {len(papers)} papers (consistency: {consistency_score:.2f}, min similarity: {min_sim:.2f})
+
+"""
+    
+    return output
+
+def _format_low_confidence_answer(result: GeneratedAnswer) -> str:
+    """Format low confidence warning - MINIMAL VERSION"""
+    
+    output = f"""## ⚠️ Low Confidence Analysis
+
+**Confidence Score:** {result.confidence_score:.2f}/1.0
+
+---
+
+## 📝 Available Information
+
+{result.overall_conclusion}
+
+---
+
+## 📚 Papers Found (Low Relevance)
+
+"""
+    for i, paper in enumerate(result.key_papers[:3], 1):
+        output += f"{i}. {paper['title'][:80]}... (Score: {paper['support']})\n"
+    
+    output += f"""
+
+---
+
+*⚠️ This answer has LOW CONFIDENCE. Use for exploratory purposes only.*
+"""
+    return output
+
+
+def _extract_key_findings(mechanism_text: str, max_findings: int = 5) -> List[str]:
+    """Extract bullet points from mechanistic explanation"""
+    if not mechanism_text or mechanism_text == "Not provided":
+        return ["Key findings not available"]
+    
+    sentences = mechanism_text.split('.')
+    findings = []
+    
+    for s in sentences:
+        s = s.strip()
+        if len(s) > 20 and len(s) < 200:
+            findings.append(s)
+        if len(findings) >= max_findings:
+            break
+    
+    return findings if findings else ["See mechanistic explanation for details"]
 
 
 # ==================================================
@@ -489,7 +731,7 @@ def build_multihop_graph() -> StateGraph:
         "validate",
         route_after_validation,
         {
-            "reject": "generate",  # Will output rejection message
+            "reject": "generate",
             "retrieve": "fetch"
         }
     )
@@ -504,7 +746,7 @@ def build_multihop_graph() -> StateGraph:
         "expand",
         should_continue,
         {
-            "continue": "retrieve",  # Loop back for more papers
+            "continue": "retrieve",
             "generate": "generate"
         }
     )
@@ -526,18 +768,19 @@ class MultiHopRAG:
         self.graph = build_multihop_graph()
         log_info("✅ LangGraph compiled with validation layer")
 
-    def run(self, query: str) -> Tuple[str, List[Dict]]:
-        """Run the complete RAG pipeline"""
+    def run(self, query: str, response_mode: str = "Detailed") -> Tuple[str, List[Dict]]:
+        """Run the complete RAG pipeline with MODE support"""
         try:
             if not query or not isinstance(query, str):
                 return "Invalid query provided.", []
             
             query = query.strip()
-            log_info(f"🔬 Starting MedGuard pipeline for: '{query[:60]}...'")
+            log_info(f"🔬 Starting MedGuard pipeline for: '{query[:60]}...' (Mode: {response_mode})")
             
             initial_state = RAGState(
                 query=query,
                 original_query=query,
+                response_mode=response_mode,
                 validation_result=None,
                 is_validated=False,
                 hop=1,
@@ -574,4 +817,3 @@ class MultiHopRAG:
             error_msg = handle_error(e, "MultiHopRAG.run")
             log_warning(error_msg)
             return f"Error in MedGuard pipeline: {error_msg}", []
- 

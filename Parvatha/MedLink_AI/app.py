@@ -25,7 +25,7 @@ except Exception as e:
     st.error(f"Database initialization failed: {e}")
 
 # ==================================================
-# 🎨 MEDGUARD UI CSS
+# 🎨 MEDGUARD UI CSS - FIXED SIDEBAR SELECTBOX
 # ==================================================
 st.markdown("""
 <style>
@@ -58,9 +58,14 @@ html, body, [class*="css"] {
     color: #cbd5e1 !important;
 }
 
-/* Fix selectbox dropdown visibility */
-[data-testid="stSidebar"] select {
+/* FIX: Selectbox dropdown - dark text for visibility */
+[data-testid="stSidebar"] .stSelectbox > div > div {
     background-color: #f8fafc !important;
+    color: #0f172a !important;
+    border-radius: 6px;
+}
+
+[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div {
     color: #0f172a !important;
 }
 
@@ -101,24 +106,6 @@ html, body, [class*="css"] {
     font-size: 1rem;
 }
 
-/* ===== ANSWER BOXES ===== */
-.answer-box {
-    background-color: #ffffff;
-    padding: 26px;
-    border-radius: 14px;
-    border-left: 6px solid #0f4c81;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-    margin: 20px 0;
-    color: #0f172a;
-    font-size: 1.05rem;
-    line-height: 1.9;
-}
-
-.answer-box-low-confidence {
-    background-color: #fffbeb;
-    border-left: 6px solid #f59e0b;
-}
-
 /* ===== CONFIDENCE BADGES ===== */
 .confidence-high {
     background-color: #dcfce7;
@@ -141,39 +128,6 @@ html, body, [class*="css"] {
 .confidence-low {
     background-color: #fee2e2;
     color: #991b1b;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-/* ===== PAPER CARDS ===== */
-.paper-box {
-    background-color: #ffffff;
-    padding: 22px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-.paper-box:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-}
-
-.paper-box h4 {
-    color: #0f4c81 !important;
-    font-weight: 600;
-}
-
-.paper-box p {
-    color: #334155 !important;
-}
-
-/* ===== SCORE BADGE ===== */
-.score-badge {
-    background-color: #e0f2fe;
-    color: #0369a1;
     padding: 4px 12px;
     border-radius: 999px;
     font-size: 0.85rem;
@@ -206,14 +160,22 @@ button[kind="primary"] {
     margin-top: 30px;
 }
 
-/* ===== VALIDATION INFO ===== */
-.validation-info {
-    background-color: #f0fdf4;
-    border: 1px solid #22c55e;
-    padding: 10px 15px;
-    border-radius: 8px;
-    margin-top: 10px;
-    font-size: 0.9rem;
+/* ===== MARKDOWN TABLES ===== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background-color: #f1f5f9;
+    font-weight: 600;
 }
 
 </style>
@@ -230,7 +192,7 @@ st.markdown(
 st.markdown("---")
 
 # ==================================================
-# Sidebar
+# Sidebar - FIXED COLORS
 # ==================================================
 with st.sidebar:
     st.header("⚙️ Settings")
@@ -238,7 +200,8 @@ with st.sidebar:
     response_mode = st.selectbox(
         "Response Length",
         ["Concise", "Detailed", "Comprehensive"],
-        index=1
+        index=1,
+        help="Choose answer detail level: Concise (brief), Detailed (standard), or Comprehensive (in-depth)"
     )
 
     st.markdown("---")
@@ -264,71 +227,39 @@ with st.sidebar:
     - 🔗 LangGraph orchestration
     - ⚖️ Cross-encoder re-ranking
     - 📊 Uncertainty quantification
-    
-    **New:** Rejects non-medical queries like "Taj Mahal" 
     """)
 
 # ==================================================
-# Main Content
+# Main Content - NO EXAMPLE BUTTONS
 # ==================================================
 st.markdown("### 🔍 Enter your biomedical research question:")
 
-# Example queries
-example_queries = [
-    "How do pro-inflammatory cytokines impair insulin signaling pathways?",
-    "What is the relationship between obesity and type 2 diabetes mechanisms?",
-    "How does metformin affect mitochondrial function in cancer cells?"
-]
-
+# Simple clean text input - NO EXAMPLES
 query = st.text_area(
     label="query_input",
-    placeholder=example_queries[0],
-    height=100,
-    label_visibility="collapsed"
+    placeholder="e.g., How do pro-inflammatory cytokines impair insulin signaling pathways?",
+    height=120,
+    label_visibility="collapsed",
+    help="Enter a specific medical or biomedical research question"
 )
-
-# Show examples
-col1, col2, col3 = st.columns(3)
-for i, col in enumerate([col1, col2, col3]):
-    with col:
-        if st.button(f"Example {i+1}", key=f"ex_{i}"):
-            st.session_state["query"] = example_queries[i]
-            st.rerun()
 
 st.markdown("---")
 
+# Search button centered
 col1, col2, col3 = st.columns([2, 1, 2])
 with col2:
     search_btn = st.button("🔎 Search Literature", type="primary", use_container_width=True)
-
-# ==================================================
-# Helper: Format Answer by Length
-# ==================================================
-def format_answer(answer: str, mode: str) -> str:
-    """Format answer based on selected length"""
-    if not answer:
-        return "No answer available."
-    
-    if mode == "Concise":
-        # Return first 2-3 sentences or first paragraph
-        paragraphs = answer.split('\\n\\n')
-        return paragraphs[0] if paragraphs else answer[:500]
-    elif mode == "Comprehensive":
-        return answer  # Full answer
-    else:  # Detailed
-        return answer
 
 # ==================================================
 # Helper: Get confidence badge
 # ==================================================
 def get_confidence_badge(answer_text: str) -> str:
     """Extract and format confidence info"""
-    if "INSUFFICIENT CONFIDENCE" in answer_text:
+    if "⚠️ Low Confidence" in answer_text or "INSUFFICIENT CONFIDENCE" in answer_text:
         return '<span class="confidence-low">⚠️ Low Confidence</span>'
     elif "Confidence Score:" in answer_text:
-        # Try to extract score
         import re
-        match = re.search(r'Confidence Score:\\s*([0-9.]+)', answer_text)
+        match = re.search(r'Confidence Score:\s*([0-9.]+)', answer_text)
         if match:
             score = float(match.group(1))
             if score >= 0.7:
@@ -347,10 +278,10 @@ if search_btn:
         st.warning("⚠️ Please enter a valid medical query.")
     else:
         try:
-            with st.spinner("🛡️ Validating domain... 🔬 Retrieving evidence... ⚖️ Ranking... 🧠 Synthesizing..."):
+            with st.spinner("🛡️ Validating domain..."):
                 rag = MultiHopRAG()
-                answer, papers = rag.run(query.strip())
-                log_info(f"Search completed: {len(papers)} papers processed")
+                # PASS response_mode TO THE PIPELINE
+                answer, papers = rag.run(query.strip(), response_mode=response_mode)
 
             st.success("✅ Analysis complete!")
             st.markdown("---")
@@ -378,40 +309,26 @@ if search_btn:
                 if badge:
                     st.markdown(badge, unsafe_allow_html=True)
                 
-                # Answer box styling based on confidence
-                box_class = "answer-box"
-                if "INSUFFICIENT CONFIDENCE" in answer:
-                    box_class = "answer-box answer-box-low-confidence"
+                # Display formatted answer with markdown (does NOT include Reference Papers anymore)
+                st.markdown(answer)
                 
-                formatted_answer = format_answer(answer, response_mode)
-                st.markdown(
-                    f"<div class='{box_class}'>{formatted_answer}</div>",
-                    unsafe_allow_html=True
-                )
-
-                # Reference papers
-                st.subheader(f"📚 Reference Papers ({len(papers)} found)")
+                # Reference papers section - NOW ONLY HERE (not duplicated)
+                st.subheader(f"📚 Reference Papers ({min(5, len(papers))} shown)")
                 
-                for i, paper in enumerate(papers, 1):
+                for i, paper in enumerate(papers[:5], 1):
                     pubmed_url = f"https://pubmed.ncbi.nlm.nih.gov/{paper.get('pmid')}/"
                     
-                    # Get score breakdown if available
-                    breakdown = paper.get('score_breakdown', {})
-                    breakdown_str = ""
-                    if breakdown:
-                        breakdown_str = f"Re: {breakdown.get('relevance', 0):.2f} | CE: {breakdown.get('cross_encoder', 0):.2f}"
-                    
-                    st.markdown(
-                        f"""
-                        <div class="paper-box">
-                            <span class="score-badge">Score: {paper.get('final_score', 0):.3f} {breakdown_str}</span>
-                            <h4>{paper.get('title')}</h4>
-                            <p><i>{paper.get('journal')}</i> • {paper.get('year')}</p>
-                            <a href="{pubmed_url}" target="_blank">🔗 View on PubMed →</a>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                    # Create paper card - NO SCORE BREAKDOWN, NO Re/CE
+                    with st.container():
+                        cols = st.columns([4, 1])
+                        with cols[0]:
+                            st.markdown(f"**{i}. {paper.get('title')}**")
+                            st.caption(f"*{paper.get('journal')}* • {paper.get('year')}")
+                        with cols[1]:
+                            st.metric("Score", f"{paper.get('final_score', 0):.3f}")
+                        
+                        st.markdown(f"[🔗 View on PubMed →]({pubmed_url})")
+                        st.divider()
 
         except Exception as e:
             st.error("❌ An error occurred.")
@@ -426,4 +343,3 @@ st.markdown(
     "<div class='footer'>MedGuard Evidence | Research-only tool. Not for clinical decisions without expert review.</div>",
     unsafe_allow_html=True
 )
- 

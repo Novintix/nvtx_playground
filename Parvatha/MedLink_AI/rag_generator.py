@@ -33,17 +33,10 @@ class GeneratedAnswer:
     key_papers: List[Dict]
     uncertainty_flags: List[str]
     limitations: str
-    should_answer: bool  # Whether confidence is sufficient to answer
+    should_answer: bool
 
 
 class MedicalRAGGenerator:
-    """
-    Production-grade Medical RAG Generator
-    - Structured output with uncertainty quantification
-    - Evidence grading
-    - Confidence-based refusal
-    """
-
     def __init__(self):
         log_info("🧠 Initializing Groq API for Medical RAG...")
 
@@ -52,6 +45,7 @@ class MedicalRAGGenerator:
             raise RuntimeError("GROQ_API_KEY missing")
 
         self.model = "llama-3.1-8b-instant"
+        # FIXED: No trailing space
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
 
         self.headers = {
@@ -65,11 +59,9 @@ class MedicalRAGGenerator:
         self,
         query: str,
         papers: List[Dict],
-        retrieval_confidence: float
+        retrieval_confidence: float,
+        response_mode: str = "Detailed"
     ) -> GeneratedAnswer:
-        """
-        Generate structured answer with full uncertainty quantification
-        """
         
         if not papers:
             return GeneratedAnswer(
@@ -80,24 +72,23 @@ class MedicalRAGGenerator:
                 confidence_score=0.0,
                 justification_rationale="No papers were retrieved for this query.",
                 key_papers=[],
-                uncertainty_flags=["NO_EVIDENCE"],
+                uncertainty_flags=[],
                 limitations="No primary literature identified.",
                 should_answer=False
             )
         
-        # Calculate evidence statistics
         evidence_stats = self._calculate_evidence_stats(papers)
-        
-        # Determine evidence grade
         evidence_grade = self._determine_evidence_grade(evidence_stats, retrieval_confidence)
-        
-        # Prepare evidence text
         evidence_text = self._prepare_evidence_text(papers)
         
-        # Generate answer with LLM
-        llm_response = self._call_llm_for_answer(query, evidence_text, evidence_stats)
+        # Generate answer with LLM - PASS MODE
+        llm_response = self._call_llm_for_answer(
+            query, 
+            evidence_text, 
+            evidence_stats,
+            response_mode
+        )
         
-        # Calculate final confidence
         final_confidence = self._calculate_final_confidence(
             retrieval_confidence,
             evidence_stats,
@@ -105,16 +96,15 @@ class MedicalRAGGenerator:
             llm_response.get("internal_consistency", 0.5)
         )
         
-        # Determine if we should answer
         should_answer = final_confidence >= MIN_ANSWER_CONFIDENCE
         
-        # Extract uncertainty flags
+        # Keep uncertainty_flags for internal use but don't show in output
         uncertainty_flags = self._identify_uncertainty_flags(
             papers, evidence_stats, evidence_grade, llm_response
         )
         
         return GeneratedAnswer(
-            answer_text=llm_response.get("title", "") + "\\n\\n" + llm_response.get("mechanism", ""),
+            answer_text=llm_response.get("title", "") + "\n\n" + llm_response.get("mechanism", ""),
             mechanistic_explanation=llm_response.get("mechanism", ""),
             overall_conclusion=llm_response.get("conclusion", ""),
             evidence_grade=evidence_grade,
@@ -124,16 +114,14 @@ class MedicalRAGGenerator:
                 "pmid": p.get("pmid"),
                 "title": p.get("title"),
                 "year": p.get("year"),
-                "support": f"Score: {p.get('final_score', 0):.3f}"
+                "support": f"{p.get('final_score', 0):.3f}"
             } for p in papers[:5]],
-            uncertainty_flags=uncertainty_flags,
+            uncertainty_flags=uncertainty_flags,  # Keep for internal but don't display
             limitations=self._generate_limitations(papers, evidence_stats),
             should_answer=should_answer
         )
 
     def _calculate_evidence_stats(self, papers: List[Dict]) -> Dict:
-        """Calculate statistics about the evidence base"""
-        
         years = [p.get("year", 0) for p in papers if p.get("year", 0) > 0]
         citations = [p.get("citations", 0) for p in papers]
         scores = [p.get("final_score", 0) for p in papers]
@@ -151,24 +139,14 @@ class MedicalRAGGenerator:
             "has_high_impact": any(p.get("final_score", 0) > 0.8 for p in papers)
         }
 
-    def _determine_evidence_grade(
-        self,
-        stats: Dict,
-        retrieval_confidence: float
-    ) -> EvidenceGrade:
-        """Determine evidence grade based on study quality and consistency"""
-        
-        # Score components
+    def _determine_evidence_grade(self, stats: Dict, retrieval_confidence: float) -> EvidenceGrade:
         quality_score = stats["mean_score"] * 100
-        quantity_score = min(stats["n_papers"] * 10, 30)  # Max 30 points for quantity
-        recency_score = min(stats["n_recent"] * 5, 20)    # Max 20 for recent papers
-        
-        # Check for high-impact journals
+        quantity_score = min(stats["n_papers"] * 10, 30)
+        recency_score = min(stats["n_recent"] * 5, 20)
         impact_bonus = 10 if stats["has_high_impact"] else 0
         
         total_score = quality_score + quantity_score + recency_score + impact_bonus
         
-        # Apply retrieval confidence threshold
         if retrieval_confidence < 0.5:
             return EvidenceGrade.INSUFFICIENT
         
@@ -184,8 +162,6 @@ class MedicalRAGGenerator:
             return EvidenceGrade.INSUFFICIENT
 
     def _prepare_evidence_text(self, papers: List[Dict]) -> str:
-        """Prepare evidence text for LLM context"""
-        
         evidence_blocks = []
         for i, p in enumerate(papers[:6], 1):
             abstract = p.get("abstract", "")
@@ -197,26 +173,52 @@ class MedicalRAGGenerator:
             journal = p.get("journal", "Unknown Journal")
             
             evidence_blocks.append(
-                f"--- Paper {i} ---\\n"
-                f"Title: {title}\\n"
-                f"Journal: {journal} ({year})\\n"
-                f"PMID: {p.get('pmid', 'N/A')}\\n"
-                f"Relevance Score: {p.get('final_score', 0):.3f}\\n"
-                f"Abstract: {abstract[:800]}\\n"
+                f"--- Paper {i} ---\n"
+                f"Title: {title}\n"
+                f"Journal: {journal} ({year})\n"
+                f"PMID: {p.get('pmid', 'N/A')}\n"
+                f"Relevance Score: {p.get('final_score', 0):.3f}\n"
+                f"Abstract: {abstract[:800]}\n"
             )
         
-        return "\\n\\n".join(evidence_blocks)
+        return "\n\n".join(evidence_blocks)
 
     def _call_llm_for_answer(
         self,
         query: str,
         evidence_text: str,
-        evidence_stats: Dict
+        evidence_stats: Dict,
+        response_mode: str = "Detailed"
     ) -> Dict:
-        """Call LLM to generate structured answer"""
+        """Call LLM to generate structured answer with MODE-SPECIFIC instructions"""
         
-        system_prompt = """You are a rigorous biomedical research analyst.
-Your task is to evaluate scientific evidence and provide structured, evidence-based answers.
+        # MODE-SPECIFIC instructions
+        mode_instructions = {
+            "Concise": """You are a rigorous biomedical research analyst.
+Provide a BRIEF, FOCUSED answer:
+- Maximum 2-3 sentences per section
+- Focus ONLY on the most important finding
+- No examples, no deep mechanisms
+- Executive Summary: 1-2 sentences only
+- Be direct and concise""",
+            
+            "Detailed": """You are a rigorous biomedical research analyst.
+Provide a COMPLETE, BALANCED answer:
+- Explain mechanisms clearly but concisely
+- Include key supporting evidence
+- Moderate depth in all sections
+- Balance breadth and depth
+- 3-5 sentences per section""",
+            
+            "Comprehensive": """You are a rigorous biomedical research analyst.
+Provide an IN-DEPTH, THOROUGH analysis:
+- Deep mechanistic explanations with specific examples
+- Discuss nuanced findings and caveats
+- Maximum detail in all sections
+- 5-8 sentences per section, with specific molecular/cellular details where possible"""
+        }
+        
+        system_prompt = f"""{mode_instructions.get(response_mode, mode_instructions["Detailed"])}
 
 CRITICAL RULES:
 1. Use ONLY the provided evidence - do not use external knowledge
@@ -229,7 +231,7 @@ Respond in this exact format:
 
 TITLE: <concise scientific title>
 
-MECHANISM: <mechanistic explanation or "Mechanism not clearly established in evidence">
+MECHANISM: <mechanistic explanation>
 
 CONCLUSION: <2-3 sentence synthesis>
 
@@ -258,84 +260,109 @@ Provide your analysis in the requested format."""
             {"role": "user", "content": user_prompt}
         ]
         
-        response = self._call_groq(messages, temperature=0.3, max_tokens=800)
+        # Mode-specific token limits
+        token_limits = {
+            "Concise": 400,
+            "Detailed": 700,
+            "Comprehensive": 1200
+        }
+        max_tokens = token_limits.get(response_mode, 700)
+        
+        response = self._call_groq(messages, temperature=0.3, max_tokens=max_tokens)
         
         if not response:
+            log_warning("⚠️ LLM returned empty response - API might have failed")
             return {
                 "title": "Error in Analysis",
-                "mechanism": "Unable to generate analysis.",
+                "mechanism": "Unable to generate analysis - API failure.",
                 "conclusion": "System error during answer generation.",
                 "justification": "LLM API failure.",
                 "internal_consistency": 0.0,
                 "contradictions": "unknown"
             }
         
-        # Parse structured response
         return self._parse_llm_response(response)
 
     def _parse_llm_response(self, response: str) -> Dict:
         """Parse structured LLM response"""
-        
         result = {}
         
-        # Extract sections using regex
-        title_match = re.search(r'TITLE:\\s*(.+?)(?=\\n|$)', response, re.IGNORECASE)
-        mechanism_match = re.search(r'MECHANISM:\\s*(.+?)(?=\\nCONCLUSION|\\nJUSTIFICATION|$)', response, re.DOTALL | re.IGNORECASE)
-        conclusion_match = re.search(r'CONCLUSION:\\s*(.+?)(?=\\nJUSTIFICATION|$)', response, re.DOTALL | re.IGNORECASE)
-        justification_match = re.search(r'JUSTIFICATION:\\s*(.+?)(?=\\nINTERNAL_CONSISTENCY|$)', response, re.DOTALL | re.IGNORECASE)
-        consistency_match = re.search(r'INTERNAL_CONSISTENCY:\\s*([0-9.]+)', response, re.IGNORECASE)
-        contradictions_match = re.search(r'CONTRADICTIONS_FOUND:\\s*(.+?)(?=\\n|$)', response, re.IGNORECASE)
+        title_match = re.search(r'TITLE:\s*(.+?)(?=\n|$)', response, re.IGNORECASE)
+        mechanism_match = re.search(r'MECHANISM:\s*(.+?)(?=\nCONCLUSION|\nJUSTIFICATION|$)', response, re.DOTALL | re.IGNORECASE)
+        conclusion_match = re.search(r'CONCLUSION:\s*(.+?)(?=\nJUSTIFICATION|$)', response, re.DOTALL | re.IGNORECASE)
+        justification_match = re.search(r'JUSTIFICATION:\s*(.+?)(?=\nINTERNAL_CONSISTENCY|$)', response, re.DOTALL | re.IGNORECASE)
+        consistency_match = re.search(r'INTERNAL_CONSISTENCY:\s*([0-9.]+)', response, re.IGNORECASE)
+        contradictions_match = re.search(r'CONTRADICTIONS_FOUND:\s*(.+?)(?=\n|$)', response, re.IGNORECASE)
         
-        result["title"] = title_match.group(1).strip() if title_match else "Untitled Analysis"
-        result["mechanism"] = mechanism_match.group(1).strip() if mechanism_match else "Not provided"
-        result["conclusion"] = conclusion_match.group(1).strip() if conclusion_match else "Not provided"
-        result["justification"] = justification_match.group(1).strip() if justification_match else "Not provided"
+        result["title"] = title_match.group(1).strip() if title_match else "Research Analysis"
+        result["mechanism"] = mechanism_match.group(1).strip() if mechanism_match else "Mechanism not clearly established in evidence."
+        result["conclusion"] = conclusion_match.group(1).strip() if conclusion_match else "Based on the available evidence, further research is needed."
+        result["justification"] = justification_match.group(1).strip() if justification_match else "Evidence base is limited."
         result["internal_consistency"] = float(consistency_match.group(1)) if consistency_match else 0.5
         result["contradictions"] = contradictions_match.group(1).strip() if contradictions_match else "unknown"
+        
+        log_info(f"Parsed LLM response: title='{result['title'][:50]}...', mechanism='{result['mechanism'][:50]}...'")
         
         return result
 
     def _calculate_final_confidence(
-        self,
-        retrieval_confidence: float,
-        evidence_stats: Dict,
-        evidence_grade: EvidenceGrade,
+        self, 
+        retrieval_confidence: float, 
+        evidence_stats: Dict, 
+        evidence_grade: EvidenceGrade, 
         internal_consistency: float
     ) -> float:
-        """Calculate final calibrated confidence score"""
-        
-        # Base confidence from retrieval
+        """
+        Calculate final calibrated confidence score.
+        FIXED: Properly weights consistency to avoid contradiction with consistency score.
+        """
+        # Base components
         base_conf = retrieval_confidence
-        
-        # Evidence quality factor
         quality_factor = evidence_stats["mean_score"]
-        
-        # Quantity factor (diminishing returns after 5 papers)
         quantity_factor = min(evidence_stats["n_papers"] / 5, 1.0)
         
-        # Grade factor
         grade_factors = {
-            EvidenceGrade.A: 1.0,
-            EvidenceGrade.B: 0.85,
-            EvidenceGrade.C: 0.70,
-            EvidenceGrade.D: 0.55,
-            EvidenceGrade.INSUFFICIENT: 0.30
+            EvidenceGrade.A: 1.0, EvidenceGrade.B: 0.90, EvidenceGrade.C: 0.78,
+            EvidenceGrade.D: 0.65, EvidenceGrade.INSUFFICIENT: 0.40
         }
         grade_factor = grade_factors.get(evidence_grade, 0.5)
         
-        # Consistency factor
-        consistency_factor = internal_consistency
+        # INTERNAL_CONSISTENCY is the key - this should dominate if high
+        # If papers agree strongly (0.98), confidence should reflect that
         
-        # Weighted combination
-        final_confidence = (
-            0.30 * base_conf +
-            0.25 * quality_factor +
-            0.15 * quantity_factor +
+        # NEW: Consistency-weighted calculation
+        # High consistency (>0.85) should pull confidence up significantly
+        # Low consistency (<0.50) should pull confidence down significantly
+        
+        consistency_boost = 0.0
+        if internal_consistency >= 0.90:
+            consistency_boost = 0.15  # Boost for very high consistency
+        elif internal_consistency >= 0.75:
+            consistency_boost = 0.05  # Small boost for good consistency
+        elif internal_consistency < 0.50:
+            consistency_boost = -0.20  # Heavy penalty for inconsistency
+        
+        # Calculate weighted base
+        base_calculation = (
+            0.25 * base_conf + 
+            0.20 * quality_factor + 
+            0.10 * quantity_factor +
             0.15 * grade_factor +
-            0.15 * consistency_factor
+            0.30 * internal_consistency  # INCREASED weight on consistency
         )
         
-        return round(min(final_confidence, 1.0), 3)
+        # Apply consistency boost/penalty
+        final_confidence = base_calculation + consistency_boost
+        
+        # Hard floor/ceiling based on consistency extremes
+        if internal_consistency >= 0.95:
+            final_confidence = max(final_confidence, 0.88)  # Very high consistency = high confidence floor
+        elif internal_consistency >= 0.85:
+            final_confidence = max(final_confidence, 0.75)  # High consistency = good confidence floor
+        elif internal_consistency < 0.40:
+            final_confidence = min(final_confidence, 0.50)  # Low consistency = cap confidence
+        
+        return round(min(max(final_confidence, 0.0), 1.0), 3)
 
     def _identify_uncertainty_flags(
         self,
@@ -344,7 +371,7 @@ Provide your analysis in the requested format."""
         grade: EvidenceGrade,
         llm_response: Dict
     ) -> List[str]:
-        """Identify specific uncertainty factors"""
+        """Identify specific uncertainty factors (internal use only)"""
         
         flags = []
         
@@ -377,7 +404,7 @@ Provide your analysis in the requested format."""
             limitations.append(f"Limited evidence base ({stats['n_papers']} papers)")
         
         if stats["year_range"] > 10:
-            limitations.append(f"Wide publication span ({stats['year_range']} years) may affect comparability")
+            limitations.append(f"Wide publication span ({stats['year_range']} years)")
         
         if stats["n_recent"] < 2:
             limitations.append("Lack of recent studies (2020+)")
@@ -387,46 +414,12 @@ Provide your analysis in the requested format."""
         
         return "; ".join(limitations) if limitations else "No major limitations identified"
 
-    # =================================================
-    # LEGACY METHODS (Backward Compatibility)
-    # =================================================
-    
-    def generate_answer(self, query: str, papers: List[Dict]) -> str:
-        """Legacy method - returns simple string"""
-        result = self.generate_structured_answer(query, papers, 0.7)
-        
-        if not result.should_answer:
-            return f"⚠️ INSUFFICIENT CONFIDENCE ({result.confidence_score:.2f})\\n\\n{result.overall_conclusion}\\n\\nLimitations: {result.limitations}"
-        
-        output = f"""{result.answer_text}
-
-Evidence Grade: {result.evidence_grade.value}
-Confidence Score: {result.confidence_score:.2f}
-
-Justification Rationale:
-{result.justification_rationale}
-
-Key Supporting Papers:"""
-        
-        for i, paper in enumerate(result.key_papers, 1):
-            output += f"\\n{i}. **{paper['title']}** — {paper['support']}"
-        
-        if result.uncertainty_flags:
-            output += f"\\n\\n⚠️ Uncertainty Flags: {', '.join(result.uncertainty_flags)}"
-        
-        output += f"\\n\\n📊 Limitations: {result.limitations}"
-        
-        return output
-
     def normalize_pubmed_query(self, user_query: str) -> str:
         """Convert user query to PubMed search query"""
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "Convert to PubMed query. Extract biomedical concepts, use AND/OR, remove fluff. "
-                    "Output ONLY the query."
-                )
+                "content": "Convert to PubMed query. Extract biomedical concepts, use AND/OR, remove fluff. Output ONLY the query."
             },
             {"role": "user", "content": user_query}
         ]
@@ -441,8 +434,8 @@ Key Supporting Papers:"""
         return user_query
 
     def _sanitize_query(self, text: str) -> str:
-        text = re.sub(r'[^\\w\\sAND]', '', text.lower())
-        text = re.sub(r'\\s+', ' ', text).strip()
+        text = re.sub(r'[^\w\sAND]', '', text.lower())
+        text = re.sub(r'\s+', ' ', text).strip()
         return text if len(text.split()) >= 2 else ""
 
     def _call_groq(
@@ -470,7 +463,9 @@ Key Supporting Papers:"""
                 )
                 
                 if response.status_code == 200:
-                    return response.json()["choices"][0]["message"]["content"]
+                    content = response.json()["choices"][0]["message"]["content"]
+                    log_info(f"Groq API success: {len(content)} chars returned")
+                    return content
                 else:
                     log_warning(f"Groq API error {response.status_code}: {response.text}")
                     
@@ -479,4 +474,3 @@ Key Supporting Papers:"""
                 time.sleep(2)
         
         return ""
- 

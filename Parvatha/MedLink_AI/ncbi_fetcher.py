@@ -3,6 +3,7 @@ import os
 from typing import List, Dict, Optional
 from Bio import Entrez
 import hashlib
+import re
 from config import MAX_PAPERS_DEFAULT
 from db import query_exists, get_cached_papers, cache_papers
 from error_handler import handle_error, log_info, log_warning
@@ -14,6 +15,49 @@ load_dotenv()
 Entrez.email = os.getenv("NCBI_EMAIL", "user@example.com")
 if os.getenv("NCBI_API_KEY"):
     Entrez.api_key = os.getenv("NCBI_API_KEY")
+
+
+# ==================================================
+# NEW: PubMed Query Preprocessor
+# ==================================================
+def preprocess_query_for_pubmed(query: str) -> str:
+    """
+    Convert natural language query to PubMed search syntax
+    """
+    if not query:
+        return ""
+    
+    # If already has PubMed tags, return as-is
+    if '[' in query and ']' in query:
+        return query
+    
+    # Clean up
+    query = query.strip().rstrip('?').strip()
+    
+    # Stop words to remove
+    stop_words = {
+        'what', 'are', 'the', 'is', 'how', 'does', 'do', 'in', 'of', 
+        'with', 'for', 'to', 'and', 'or', 'a', 'an', 'this', 'that',
+        'these', 'those', 'associated', 'related', 'changes', 'effect',
+        'role', 'impact', 'between', 'among', 'within', 'during', 'on',
+        'human', 'tissues', 'patients', 'study', 'studies', 'cells',
+        'treatment', 'effect', 'clinical'
+    }
+    
+    # Extract keywords
+    words = query.lower().split()
+    key_terms = [w for w in words if w not in stop_words and len(w) > 2]
+    
+    # Limit to 6 most important terms
+    key_terms = key_terms[:6]
+    
+    if not key_terms:
+        return query
+    
+    # Build PubMed query with [tiab] (Title/Abstract) tags
+    tagged_terms = [f"{term}[tiab]" for term in key_terms]
+    
+    return " AND ".join(tagged_terms)
 
 
 class NCBIFetcher:
@@ -37,7 +81,14 @@ class NCBIFetcher:
         Fetch papers from NCBI with intelligent caching
         """
         try:
-            # FIX 1: Strip quotes and clean query
+            # FIX: Auto-convert natural language to PubMed syntax
+            original_query = query
+            query = preprocess_query_for_pubmed(query)
+            
+            if original_query != query:
+                log_info(f"🔍 Query converted: '{original_query[:60]}...' → '{query}'")
+            
+            # Validation
             if not query or not isinstance(query, str):
                 raise ValueError("Query must be a non-empty string")
             
@@ -60,7 +111,7 @@ class NCBIFetcher:
             log_info(f"🔍 Cache MISS - Fetching from NCBI: '{query[:50]}...'")
             self.cache_misses += 1
             
-            # FIX 2: Better search strategy
+            # Search PubMed
             search_handle = Entrez.esearch(
                 db="pubmed",
                 term=query,
@@ -72,14 +123,14 @@ class NCBIFetcher:
             
             pmids = search_results.get("IdList", [])
             
-            # FIX 3: If no results, try with AND split (take first part)
+            # If no results, try with simplified query (take first part)
             if not pmids and " AND " in query:
                 simplified = query.split(" AND ")[0].strip()
                 if simplified != query:
                     log_warning(f"🔁 Retrying with simplified query: {simplified}")
                     return self.fetch_papers(simplified, max_results, use_cache=False)
             
-            # FIX 4: If still no results, try OR instead of AND
+            # If still no results, try with OR instead of AND
             if not pmids and " AND " in query:
                 simplified = query.replace(" AND ", " OR ")
                 log_warning(f"🔁 Retrying with OR query: {simplified}")
@@ -218,4 +269,35 @@ class NCBIFetcher:
             "total_requests": total,
             "hit_rate": round(hit_rate, 2)
         }
- 
+
+
+# ==================================================
+# Test the fix when running directly
+# ==================================================
+if __name__ == "__main__":
+    print("Testing PubMed query preprocessor:\n")
+    
+    test_queries = [
+        "What are the epigenetic changes associated with aging in human tissues?",
+        "How does metformin affect cancer progression?",
+        "What is the role of gut microbiome in Alzheimer's disease?",
+        "Does aspirin reduce cardiovascular disease risk?"
+    ]
+    
+    for q in test_queries:
+        pubmed_q = preprocess_query_for_pubmed(q)
+        print(f"User:   {q}")
+        print(f"PubMed: {pubmed_q}\n")
+    
+    # Test actual fetch
+    print("=" * 60)
+    print("Testing NCBI fetch:")
+    fetcher = NCBIFetcher()
+    
+    test_q = "What are the epigenetic changes associated with aging in human tissues?"
+    papers = fetcher.fetch_papers(test_q, max_results=5)
+    
+    print(f"\n✅ Found {len(papers)} papers for: '{test_q}'")
+    for i, p in enumerate(papers[:3], 1):
+        print(f"\n{i}. {p['title']}")
+        print(f"   PMID: {p['pmid']} | Year: {p['year']} | Journal: {p['journal'][:30]}...")

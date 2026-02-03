@@ -74,6 +74,26 @@ class PubMedEmbeddingStore:
         """Check if paper exists in index"""
         return any(p.get("pmid") == pmid for p in self.metadata)
     
+    def get_embedding(self, pmid: str) -> Optional[np.ndarray]:
+        """Retrieve embedding for a specific paper by PMID"""
+        # Find index of paper with this PMID
+        idx = None
+        for i, meta in enumerate(self.metadata):
+            if meta.get("pmid") == pmid:
+                idx = i
+                break
+        
+        if idx is not None and idx < self.index.ntotal:
+            # Reconstruct the vector from FAISS
+            # FAISS doesn't store vectors directly accessible by ID in IndexFlatIP
+            # We need to search for it or maintain a separate array
+            # Since we have the index, we can get it via reconstruct
+            try:
+                return self.index.reconstruct(int(idx))
+            except:
+                return None
+        return None
+    
     def add_paper(self, paper: Dict):
         """Add single paper to index"""
         try:
@@ -227,4 +247,3 @@ class PubMedEmbeddingStore:
                 log_info(f"📂 Loaded FAISS index with {self.index.ntotal} vectors")
         except Exception as e:
             log_info(f"⚠️ Could not load existing index: {e}")
- 
