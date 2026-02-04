@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&display=swap');
+
+:root {
+    --bg-main: #0f172a;
+    --bg-secondary: #1e293b;
+    --accent-emerald: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-blue: #3b82f6;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Base Styles */
+.stApp {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+.main-header {
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+/* Main Header Section */
+.main-header {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+}
+
+.sub-header {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 3rem;
+    font-weight: 400;
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: #0c111d;
+    border-right: 1px solid var(--glass-border);
+}
+
+.sidebar-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+/* Glassmorphism Cards */
+.css-1r6slb0,
+.stMetric,
+.element-container div[data-testid="stExpander"] {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: transform 0.2s ease;
+}
+
+.stExpander {
+    border: none !important;
+}
+
+/* Badge Styling */
+.mcp-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-emerald);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Chat Overrides */
+.stChatMessage {
+    background: transparent !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+}
+
+.stChatMessage [data-testid="stMarkdownContainer"] p {
+    font-size: 1.05rem;
+    line-height: 1.6;
+}
+
+/* Analytics Dash Styling */
+.executive-card {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.metric-title {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+}
