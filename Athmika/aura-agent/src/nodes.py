@@ -38,8 +38,12 @@ def retrieve_node(state: AgentState):
     web_context = ""
     if "trainer" in mode.lower() and company:
         try:
-            # Search specifically for questions
-            search_query = f"{company} technical interview questions for freshers 2025 2026"
+            if len(query) < 50: # If it's a short topic like "Java" or "Python"
+                search_query = f"{company} {query} technical interview questions for freshers 2025 2026"
+            else:
+                # If it's a long sentence, fall back to generic or extract keywords (simple fallback here)
+                search_query = f"{company} technical interview questions for freshers"
+            
             raw_search = web_search_tool.invoke(search_query)
             if isinstance(raw_search, str):
                 web_context = "TOP SEARCH RESULTS:\n"
@@ -80,7 +84,10 @@ def generate_node(state: AgentState):
         Classify the user's intent into exactly one of these two categories:
         
         1. "RESUME_HELP": The user wants help explaining, summarizing, or pitching THEIR OWN specific projects/skills (e.g. "Explain WellGenix", "Help me with my intro", "How do I talk about Python?").
+            - Triggers: "Explain my project", "My Python skills", "How do I pitch WellGenix?", "Tell me about me".
         2. "MARKET_INFO": The user wants to know about external interview questions, company trends, or generic question banks (e.g. "Start", "What does CTS ask?", "Common questions").
+            - Triggers: "Java", "Python", "SQL", "CTS Questions", "What does Cognizant ask?", "System Design".
+        3. "OFF_TOPIC": User asks about general knowledge, celebrities, movies, sports, politics or chit-chat (e.g. "Who is Billie Eilish?", "What is the weather?")
         
         USER MESSAGE: "{messages[-1].content}"
         
@@ -144,7 +151,7 @@ def generate_node(state: AgentState):
             """
             new_depth = 0
             
-        else:
+        elif "MARKET_INFO" in intent:
             # === PATH B: MARKET SCOUT (Strict "Real Question" Filter) ===
             system_prompt = f"""
             You are AURA, an Expert Technical Interview Mentor.
@@ -154,7 +161,11 @@ def generate_node(state: AgentState):
             2. **REAL INTERVIEW SOURCES**: Search results for {company} interviews.
             
             TASK:
-            Find 3 specific interview questions that are **EXPLICITLY QUOTED** in the snippets.
+            Identify what the user is asking about:
+            1. If they ask about questions related to {company} Find 3 specific interview questions that are **EXPLICITLY QUOTED** in the snippets.
+            2. If the user provided a broad topic like "{last_user_msg}", extract 3 REAL interview questions related to that {last_user_msg}. 
+               - RULES: Verbatim quotes only. Must cite URL.
+               - If the user doesn't have knowledge on that topic from their resume, draft ideal answers using ONLY their resume data.
             
             🚨 CRITICAL RULES FOR CITATION:
             1. **VERBATIM ONLY:** You can only list a question if you can find the *exact sentence* in the text.
@@ -171,6 +182,7 @@ def generate_node(state: AgentState):
             OUTPUT FORMAT:
             ### 🎯 Question [1/2/3]
             **❓ Real Question:** [Insert Technical/Behavioral Question found in text]
+            
             **🔗 Source:** [Insert Exact URL]
 
             **✅ Ideal Answer:** [First-person answer drafting using ONLY resume data]
@@ -180,8 +192,33 @@ def generate_node(state: AgentState):
             CONTEXT:
             {context}
             """
+            new_depth = 0
+        
+        else:
+            # === PATH C: OFF-TOPIC GUARDRAIL ===
+            system_prompt = f"""
+            You are AURA, a specialized Career Architect Agent.
             
-        new_depth = 0
+            Your ONLY purpose is to help candidates prepare for technical interviews at {company}.
+            
+            TASK:
+            The user has asked an off-topic question: "{last_user_msg}".
+            You must politely REFUSE to answer it.
+            
+            RULES:
+            - Do NOT answer the question (e.g. do NOT explain who the actor is).
+            - Do NOT provide general knowledge.
+            - Redirect the user back to their Resume or Interview Prep.
+            
+            OUTPUT FORMAT:
+            ### ⛔ Out of Scope
+            **Reason:** My knowledge base is strictly limited to your **Resume** and **{company} Interview Patterns**.
+            
+            **Action:** I cannot answer general knowledge questions. Please ask me to:
+            1. Explain a project from your resume.
+            2. Find real interview questions for {company}.
+            """  
+            new_depth = 0
 
     else:
         # --- INTERVIEWER SIMULATION MODE ---
