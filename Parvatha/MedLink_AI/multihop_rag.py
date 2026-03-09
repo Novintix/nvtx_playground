@@ -1,3 +1,8 @@
+"""
+Enhanced Multi-Hop RAG with Domain Validation and Uncertainty Quantification
+LangGraph-based agent workflow for MedGuard Evidence
+"""
+
 from typing import List, Dict, Tuple, TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from sklearn.metrics.pairwise import cosine_similarity
@@ -16,34 +21,21 @@ from config import MAX_HOPS, TOP_K_PER_HOP, MIN_DOMAIN_RELEVANCE, MIN_ANSWER_CON
 # Enhanced State Definition
 # ==================================================
 class RAGState(TypedDict):
-    # Input
     query: str
     original_query: str
     response_mode: str 
-    
-    # Validation
     validation_result: Optional[ValidationResult]
     is_validated: bool
-    
-    # Multi-hop tracking
     hop: int
-    
-    # Evidence collection
     papers: List[Dict]
     similarities: List[float]
     uncertainties: List[float]
-    
-    # Re-ranking
     ranked_papers: List[Dict]
     retrieval_confidence: float
     contradictions: List[Dict]
-    
-    # Generation
     generated_answer: Optional[GeneratedAnswer]
     final_answer: str
     should_answer: bool
-    
-    # Error handling
     error: str
     rejection_reason: str
 
@@ -155,17 +147,11 @@ def fetch_papers_node(state: RAGState) -> RAGState:
         fetcher = get_component("fetcher")
         generator = get_component("generator")
         
-        # LLM-based query normalization
         pubmed_query = generator.normalize_pubmed_query(query)
         log_info(f"🔎 Normalized query: '{pubmed_query}'")
         
-        # Fetch papers - DYNAMIC based on mode
         response_mode = state.get("response_mode", "Detailed")
-        mode_config = {
-            "Concise": 8,
-            "Detailed": 15,
-            "Comprehensive": 25
-        }
+        mode_config = {"Concise": 8, "Detailed": 15, "Comprehensive": 25}
         max_results = mode_config.get(response_mode, 15)
         
         papers = fetcher.fetch_papers(pubmed_query, max_results=max_results)
@@ -176,7 +162,6 @@ def fetch_papers_node(state: RAGState) -> RAGState:
             state["error"] = "NO_PAPERS: No relevant papers found in PubMed"
             return state
         
-        # Add to vector store
         store = get_component("store")
         new_papers = [p for p in papers if not store.has_paper(p["pmid"])]
         if new_papers:
@@ -208,8 +193,6 @@ def retrieve_papers_node(state: RAGState) -> RAGState:
         log_info(f"🔍 Retrieving papers for: '{query[:50]}...'")
         
         store = get_component("store")
-        
-        # Enhanced search returns uncertainties too
         papers, similarities, uncertainties = store.search(query, top_k=TOP_K_PER_HOP * 3)
         
         if not papers:
@@ -257,10 +240,7 @@ def rerank_papers_node(state: RAGState) -> RAGState:
         reranker = get_component("reranker")
         query = state["query"]
         
-        # Multi-factor re-ranking
         ranked, confidence = reranker.rerank(query, papers, similarities)
-        
-        # Detect contradictions
         contradictions = reranker.detect_contradictions(ranked[:5])
         
         log_info(f"✅ Re-ranked (confidence: {confidence:.3f}, contradictions: {len(contradictions)})")
@@ -269,7 +249,6 @@ def rerank_papers_node(state: RAGState) -> RAGState:
         state["retrieval_confidence"] = confidence
         state["contradictions"] = contradictions
         
-        # Early exit if confidence too low
         if confidence < 0.3:
             log_warning(f"⚠️ Very low retrieval confidence: {confidence:.3f}")
             state["error"] = f"LOW_CONFIDENCE: Evidence quality too low ({confidence:.2f})"
@@ -299,23 +278,17 @@ def expand_query_node(state: RAGState) -> RAGState:
         
         log_info(f"🔄 Query expansion (hop {hop}/{MAX_HOPS})")
         
-        # Increment hop
         state["hop"] = hop + 1
         
-        # Smart expansion: extract key concepts from top papers
         if ranked_papers and hop < MAX_HOPS:
-            # Get MeSH terms or keywords from top papers
             expansion_terms = []
-            
-            # Use titles for expansion
             top_titles = [p["title"] for p in ranked_papers[:2]]
+            
             for title in top_titles:
-                # Extract key noun phrases (simplified)
                 words = title.split()
                 key_terms = [w for w in words if len(w) > 5 and w.isalpha()]
                 expansion_terms.extend(key_terms[:3])
             
-            # Deduplicate and limit
             expansion_terms = list(set(expansion_terms))[:5]
             
             if expansion_terms:
@@ -326,7 +299,6 @@ def expand_query_node(state: RAGState) -> RAGState:
     except Exception as e:
         error_msg = handle_error(e, "expand_query_node")
         log_warning(error_msg)
-        # Non-critical error, continue
     
     return state
 
@@ -345,7 +317,6 @@ def should_continue(state: RAGState) -> str:
         log_info(f"🛑 Max hops reached, generating answer")
         return "generate"
     
-    # Check if we have good enough results to stop early
     if state.get("retrieval_confidence", 0) > 0.8 and state.get("hop", 1) > 1:
         log_info("✅ High confidence achieved, stopping early")
         return "generate"
@@ -358,10 +329,7 @@ def should_continue(state: RAGState) -> str:
 # NEW: Dynamic Consistency Calculator
 # ==================================================
 def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
-    """
-    Calculate consistency metrics based on actual semantic similarity between papers.
-    Returns detailed consistency analysis for dynamic assessment.
-    """
+    """Calculate consistency metrics based on actual semantic similarity between papers."""
     if not papers or len(papers) < 2:
         return {
             "consistency_score": 1.0 if papers else 0.0,
@@ -373,7 +341,6 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
             "divergent_papers": []
         }
     
-    # Get embeddings from store
     store = get_component("store")
     
     paper_embeddings = []
@@ -385,7 +352,6 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
             paper_embeddings.append(emb)
             valid_papers.append(p)
     
-    # Calculate pairwise similarities
     if len(paper_embeddings) < 2:
         return {
             "consistency_score": 0.5,
@@ -400,16 +366,13 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
     embeddings_matrix = np.array(paper_embeddings)
     similarity_matrix = cosine_similarity(embeddings_matrix)
     
-    # Get upper triangle (excluding diagonal)
     upper_tri_indices = np.triu_indices(len(paper_embeddings), k=1)
     pairwise_sims = similarity_matrix[upper_tri_indices]
     
     avg_sim = float(np.mean(pairwise_sims))
     min_sim = float(np.min(pairwise_sims))
-    max_sim = float(np.max(pairwise_sims))
     std_sim = float(np.std(pairwise_sims))
     
-    # Determine agreement level based on distribution
     if avg_sim >= 0.85 and std_sim < 0.1:
         agreement_level = "Very High"
     elif avg_sim >= 0.75 and std_sim < 0.15:
@@ -421,12 +384,10 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
     else:
         agreement_level = "Low"
     
-    # Find divergent papers (those with low average similarity to others)
     divergent_papers = []
     contradictions = []
     
     for i, paper in enumerate(valid_papers):
-        # Average similarity of this paper to all others
         avg_to_others = np.mean([similarity_matrix[i][j] for j in range(len(paper_embeddings)) if i != j])
         
         if avg_to_others < 0.5:
@@ -436,7 +397,6 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
                 "avg_similarity": float(avg_to_others)
             })
         
-        # Check for specific contradictions (very low similarity pairs)
         for j in range(i + 1, len(valid_papers)):
             if similarity_matrix[i][j] < 0.4:
                 contradictions.append({
@@ -445,17 +405,11 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
                     "similarity": float(similarity_matrix[i][j])
                 })
     
-    # Generate agreement details
     agreement_details = []
     for i, paper in enumerate(valid_papers[:3]):
-        if i == 0:
-            label = "Strong support"
-        elif i == 1:
-            label = "Supports findings"
-        else:
-            label = "Consistent with mechanism"
+        label = "Strong support" if i == 0 else "Supports findings" if i == 1 else "Consistent with mechanism"
         agreement_details.append({
-            "title": paper.get("title", "Unknown")[:60],
+            "title": paper.get("title", "Unknown"),
             "agreement": label
         })
     
@@ -466,8 +420,6 @@ def calculate_dynamic_consistency(papers: List[Dict]) -> Dict:
         "contradictions": contradictions,
         "avg_similarity": round(avg_sim, 3),
         "min_similarity": round(min_sim, 3),
-        "max_similarity": round(max_sim, 3),
-        "similarity_std": round(std_sim, 3),
         "divergent_papers": divergent_papers
     }
 
@@ -493,7 +445,6 @@ def generate_answer_node(state: RAGState) -> RAGState:
         
         generator = get_component("generator")
         
-        # Generate structured answer with uncertainty and MODE
         result = generator.generate_structured_answer(
             query=original_query,
             papers=papers,
@@ -504,10 +455,8 @@ def generate_answer_node(state: RAGState) -> RAGState:
         state["generated_answer"] = result
         state["should_answer"] = result.should_answer
         
-        # Calculate DYNAMIC consistency based on paper embeddings
         consistency_analysis = calculate_dynamic_consistency(papers)
         
-        # Format final answer with MODE and DYNAMIC consistency
         if result.should_answer:
             state["final_answer"] = _format_success_answer(
                 result, 
@@ -531,16 +480,26 @@ def generate_answer_node(state: RAGState) -> RAGState:
 
 
 # ==================================================
-# FORMATTING - 7 MANDATORY SECTIONS ONLY (FIXED)
+# FORMATTING - PROFESSIONAL STRUCTURED OUTPUT
 # ==================================================
 
 def _format_success_answer(result: GeneratedAnswer, consistency_analysis: Dict, papers: List[Dict], mode: str = "Detailed") -> str:
-    """Format successful answer - 7 MANDATORY SECTIONS ONLY with DYNAMIC consistency"""
+    """Format successful answer with professional structure and dropdowns"""
     
-    # 1. EXECUTIVE SUMMARY (Answer Reasoning)
-    output = f"""## 📋 Executive Summary
+    # Mode-based answer length
+    mode_config = {
+        "Concise": {"sentences": 2, "detail": "brief"},
+        "Detailed": {"sentences": 4, "detail": "standard"},
+        "Comprehensive": {"sentences": 8, "detail": "in-depth"}
+    }
+    config = mode_config.get(mode, mode_config["Detailed"])
+    
+    # 1. MAIN ANSWER (varies by mode)
+    main_answer = _format_main_answer(result.mechanistic_explanation, config["sentences"])
+    
+    output = f"""## 📋 Answer
 
-{result.overall_conclusion}
+{main_answer}
 
 ---
 
@@ -548,119 +507,263 @@ def _format_success_answer(result: GeneratedAnswer, consistency_analysis: Dict, 
 
 """
     
-    # 2. KEY FINDINGS (Bullet points)
-    findings = _extract_key_findings(result.mechanistic_explanation, max_findings=5)
-    for finding in findings:
-        output += f"• {finding}\n"
+    # 2. KEY FINDINGS (Discoveries made during research)
+    key_findings = _extract_key_findings(papers, result)
+    for finding in key_findings:
+        output += f"{finding}\n\n"
     
-    # 3. MECHANISTIC EXPLANATION
-    output += f"""
----
+    # 3. MECHANISTIC EXPLANATION (Point-wise)
+    mechanism_points = _format_mechanism_points(result.mechanistic_explanation)
+    
+    output += f"""---
 
 ## 🧬 Mechanistic Explanation
 
-{result.mechanistic_explanation}
+{mechanism_points}
 
+---
+
+## ✅ Consistency Assessment
+
+**Status:** {consistency_analysis['agreement_level']} Consensus (Score: {consistency_analysis['consistency_score']:.2f})
+
+**Supporting Papers:**
 """
     
-    # 4 & 5. CONSISTENCY + CONFIDENCE SCORE (FIXED - DYNAMIC)
-    output += _generate_consistency_section(consistency_analysis, papers, result.confidence_score)
+    # Supporting papers - full titles, not truncated
+    for i, detail in enumerate(consistency_analysis.get("agreement_details", [])[:3], 1):
+        output += f"\n{i}. **{detail['title']}**  \n   *{detail['agreement']}*"
     
-    # 6. REFERENCE PAPERS - REMOVED FROM HERE (will be added in app.py to avoid duplication)
-    # The reference papers section is now handled in app.py to prevent duplication
+    # Check gap
+    gap = abs(result.confidence_score - consistency_analysis['consistency_score'])
+    if gap > 0.15:
+        output += f"\n\n> ⚠️ **Note:** Confidence ({result.confidence_score:.2f}) and consistency ({consistency_analysis['consistency_score']:.2f}) diverge. Evidence is semantically similar but may lack citations/recency."
     
-    return output
-
-
-def _generate_consistency_section(consistency_analysis: Dict, papers: List[Dict], confidence_score: float) -> str:
-    """
-    Generate consistency section with DYNAMIC assessment based on actual paper similarities.
-    Score and text are now aligned.
-    """
-    agreement_level = consistency_analysis.get("agreement_level", "Unknown")
-    consistency_score = consistency_analysis.get("consistency_score", 0.0)
-    min_sim = consistency_analysis.get("min_similarity", 0.0)
-    contradictions = consistency_analysis.get("contradictions", [])
-    divergent_papers = consistency_analysis.get("divergent_papers", [])
-    
-    # NEW: Detect confidence-consistency misalignment
-    confidence_consistency_gap = abs(confidence_score - consistency_score)
-    alignment_warning = ""
-    if confidence_consistency_gap > 0.15:
-        alignment_warning = f"\n\n⚠️ **Note:** Confidence ({confidence_score:.2f}) and consistency ({consistency_score:.2f}) show significant divergence. This may indicate the evidence is semantically similar but limited in other quality metrics (citations, recency, or evidence grade)."
-    
-    # Determine status and description based on actual consistency score
-    if agreement_level == "Very High":
-        status_icon = "✅"
-        status_text = "Strong Consensus"
-        description = "All papers show strong semantic agreement with minimal divergence."
-    elif agreement_level == "High":
-        status_icon = "✅"
-        status_text = "High Agreement"
-        description = "Papers largely agree on main findings with minor variations."
-    elif agreement_level == "Moderate":
-        status_icon = "⚠️"
-        status_text = "Moderate Agreement"
-        description = "Most papers align, but some differences in emphasis or scope exist."
-    elif agreement_level == "Partial":
-        status_icon = "⚠️"
-        status_text = "Partial Agreement"
-        description = "Mixed evidence with some papers supporting different aspects or conclusions."
-    else:
-        status_icon = "🚫"
-        status_text = "Low Agreement / Disagreement"
-        description = "Significant divergence between papers. Results should be interpreted with caution."
-    
-    # Build agreement details dynamically
-    agreement_details = []
-    for detail in consistency_analysis.get("agreement_details", []):
-        agreement_details.append(f"• {detail['title']}... - {detail['agreement']}")
-    
-    output = f"""---
-
-## {status_icon} Consistency Assessment
-
-**Status:** {status_text} (Score: {consistency_score:.2f})
-
-**Description:** {description}
-"""
-    
-    # Add alignment warning if detected
-    output += alignment_warning
-    
-    # Add agreement details if available
-    if agreement_details:
-        output += "\n\n**Agreement Details:**\n"
-        for detail in agreement_details[:3]:
-            output += f"{detail}\n"
-    
-    # Add divergence warnings if applicable
-    if divergent_papers:
-        output += "\n**Divergent Sources:**\n"
-        for div in divergent_papers[:2]:
+    # DIVERGENT PAPERS (if any)
+    if consistency_analysis.get("divergent_papers"):
+        output += "\n\n**⚠️ Divergent Sources:**\n\n"
+        for div in consistency_analysis["divergent_papers"][:2]:
             output += f"• {div['title']}... (similarity: {div['avg_similarity']:.2f})\n"
     
-    # Add contradictions if found
-    if contradictions:
-        output += "\n**Contradictions Found:**\n"
-        for i, c in enumerate(contradictions[:2], 1):
-            output += f"• Paper pair shows low agreement (sim: {c['similarity']:.2f})\n"
-    
-    # Confidence score with context
     output += f"""
 
 ---
 
-## 📊 Confidence Score
+## 📊 Confidence & Evidence Summary
 
-**{confidence_score:.2f}/1.0** - Based on {len(papers)} papers (consistency: {consistency_score:.2f}, min similarity: {min_sim:.2f})
+| Metric | Value | Definition |
+|--------|-------|------------|
+| **Confidence Score** | {result.confidence_score:.2f}/1.0 | Overall reliability based on evidence quality, quantity, and agreement |
+| **Consistency Score** | {consistency_analysis['consistency_score']:.2f}/1.0 | Semantic agreement between papers (0=disagree, 1=identical) |
+| **Papers Reviewed** | {len(papers)} | Number of peer-reviewed articles analyzed |
+| **Recent Papers** | {len([p for p in papers if p.get('year', 0) >= 2020])} | Papers published from 2020 onwards |
 
+"""
+    
+    # DROPDOWN SECTIONS FOR DETAILED INFO
+    output += _create_dropdown_sections(result, papers, consistency_analysis)
+    
+    return output
+
+
+def _format_main_answer(mechanism_text: str, sentence_count: int) -> str:
+    """Format main answer with appropriate length based on mode"""
+    if not mechanism_text or mechanism_text == "Not provided":
+        return "Answer not available."
+    
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', mechanism_text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
+    
+    # Take required number of sentences
+    selected = sentences[:sentence_count]
+    
+    return " ".join(selected)
+
+
+def _extract_key_findings(papers: List[Dict], result: GeneratedAnswer) -> List[str]:
+    """Extract key discoveries made during research"""
+    findings = []
+    
+    # Finding 1: Main mechanism discovered
+    if result.mechanistic_explanation and result.mechanistic_explanation != "Not provided":
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', result.mechanistic_explanation)
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 30]
+        
+        if sentences:
+            first_key = sentences[0]
+            if len(first_key) > 150:
+                first_key = first_key[:147] + "..."
+            findings.append(f"• **Primary Discovery:** {first_key}")
+    
+    # Finding 2: Evidence strength
+    high_quality = len([p for p in papers if p.get('final_score', 0) > 0.8])
+    findings.append(f"• **Evidence Strength:** {high_quality} high-quality papers identified (score >0.8)")
+    
+    # Finding 3: Temporal coverage
+    years = [p.get('year', 0) for p in papers if p.get('year', 0) > 0]
+    if years:
+        year_range = max(years) - min(years) if len(years) > 1 else 0
+        findings.append(f"• **Research Span:** Evidence spans {year_range} years ({min(years)}-{max(years)})")
+    
+    # Finding 4: Top source
+    if papers and papers[0].get('journal'):
+        findings.append(f"• **Leading Source:** {papers[0].get('journal')} (Score: {papers[0].get('final_score', 0):.3f})")
+    
+    # Finding 5: Consistency finding
+    if result.confidence_score >= 0.8:
+        findings.append(f"• **Agreement Level:** Strong consensus across all reviewed papers")
+    elif result.confidence_score >= 0.6:
+        findings.append(f"• **Agreement Level:** Moderate consensus with minor variations")
+    else:
+        findings.append(f"• **Agreement Level:** Mixed evidence requiring further validation")
+    
+    return findings
+
+
+def _format_mechanism_points(mechanism_text: str) -> str:
+    """Format mechanism as clean bullet points"""
+    if not mechanism_text or mechanism_text == "Not provided":
+        return "• Mechanistic explanation not available."
+    
+    import re
+    # Split into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', mechanism_text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
+    
+    if len(sentences) <= 3:
+        return "\n\n".join([f"• {s}" for s in sentences])
+    
+    # Categorize into logical groups
+    problem = []
+    mechanism = []
+    outcome = []
+    
+    for sent in sentences:
+        sent_lower = sent.lower()
+        
+        if any(w in sent_lower for w in ['develops', 'impaired', 'dysfunction', 'defect', 'resistance', 'associated with']):
+            if 'mechanism' not in sent_lower and 'treatment' not in sent_lower:
+                problem.append(sent)
+                continue
+        
+        if any(w in sent_lower for w in ['mechanism', 'pathway', 'signaling', 'activation', 'modulates', 'regulates', 'through', 'via']):
+            mechanism.append(sent)
+            continue
+        
+        if any(w in sent_lower for w in ['improves', 'restores', 'promotes', 'treatment', 'drug', 'therapeutic']):
+            outcome.append(sent)
+            continue
+        
+        mechanism.append(sent)
+    
+    output = []
+    
+    if problem:
+        output.append("**Pathophysiology:**")
+        for s in problem[:2]:
+            output.append(f"• {s}")
+        output.append("")
+    
+    if mechanism:
+        output.append("**Cellular Mechanism:**")
+        for s in mechanism[:4]:
+            output.append(f"• {s}")
+        output.append("")
+    
+    if outcome:
+        output.append("**Clinical Implications:**")
+        for s in outcome[:2]:
+            output.append(f"• {s}")
+    
+    return "\n\n".join(output) if output else "\n\n".join([f"• {s}" for s in sentences[:5]])
+
+
+def _create_dropdown_sections(result: GeneratedAnswer, papers: List[Dict], consistency_analysis: Dict) -> str:
+    """Create collapsible dropdown sections for detailed info"""
+    
+    # Justification content
+    justification = result.justification_rationale if result.justification_rationale else "Based on systematic review of retrieved literature."
+    
+    # Limitations content
+    limitations = result.limitations if result.limitations else "Standard limitations apply to observational studies."
+    
+    # Internal consistency explanation
+    internal_consistency = f"{consistency_analysis['consistency_score']:.2f} - " + {
+        "Very High": "Papers show near-identical conclusions",
+        "High": "Strong agreement across all sources",
+        "Moderate": "General agreement with minor differences",
+        "Partial": "Some agreement, some divergence",
+        "Low": "Significant disagreement between sources"
+    }.get(consistency_analysis['agreement_level'], "Agreement level unclear")
+    
+    # Paper-specific findings
+    paper_findings = ""
+    for i, p in enumerate(papers[:5], 1):
+        paper_findings += f"**Paper {i}:** {p.get('title', 'Unknown')[:100]}...  \n"
+        paper_findings += f"→ Relevance: {p.get('final_score', 0):.3f} | Year: {p.get('year', 'N/A')} | Citations: {p.get('citations', 'N/A')}\n\n"
+    
+    # Paper-specific limitations
+    paper_limits = ""
+    for i, p in enumerate(papers[:5], 1):
+        # Generate limitation based on paper characteristics
+        limits = []
+        if p.get('year', 0) < 2020:
+            limits.append("Older study")
+        if p.get('citations', 0) < 50:
+            limits.append("Limited citations")
+        if p.get('final_score', 0) < 0.7:
+            limits.append("Lower relevance")
+        
+        if limits:
+            paper_limits += f"**Paper {i}:** {', '.join(limits)}\n\n"
+    
+    # Build dropdown HTML
+    output = f"""
+<details>
+<summary>📄 <b>Justification</b> (Click to expand)</summary>
+
+{justification}
+
+</details>
+
+<details>
+<summary>⚠️ <b>Limitations</b> (Click to expand)</summary>
+
+{limitations}
+
+</details>
+
+<details>
+<summary>🔍 <b>Internal Consistency</b> (Click to expand)</summary>
+
+**Score:** {internal_consistency}
+
+*Definition: Measures how semantically similar the papers are (0=completely disagree, 1=completely agree)*
+
+</details>
+
+<details>
+<summary>📝 <b>Paper-Specific Findings</b> (Click to expand)</summary>
+
+{paper_findings}
+
+</details>
+
+<details>
+<summary>⚡ <b>Paper-Specific Limitations</b> (Click to expand)</summary>
+
+{paper_limits if paper_limits else "No specific limitations noted for top papers."}
+
+</details>
 """
     
     return output
 
+
 def _format_low_confidence_answer(result: GeneratedAnswer) -> str:
-    """Format low confidence warning - MINIMAL VERSION"""
+    """Format low confidence warning"""
     
     output = f"""## ⚠️ Low Confidence Analysis
 
@@ -678,33 +781,15 @@ def _format_low_confidence_answer(result: GeneratedAnswer) -> str:
 
 """
     for i, paper in enumerate(result.key_papers[:3], 1):
-        output += f"{i}. {paper['title'][:80]}... (Score: {paper['support']})\n"
+        output += f"{i}. {paper['title'][:80]}...  \n   Score: {paper['support']}\n\n"
     
-    output += f"""
+    output += """
 
 ---
 
-*⚠️ This answer has LOW CONFIDENCE. Use for exploratory purposes only.*
+_⚠️ This answer has LOW CONFIDENCE. Use for exploratory purposes only._
 """
     return output
-
-
-def _extract_key_findings(mechanism_text: str, max_findings: int = 5) -> List[str]:
-    """Extract bullet points from mechanistic explanation"""
-    if not mechanism_text or mechanism_text == "Not provided":
-        return ["Key findings not available"]
-    
-    sentences = mechanism_text.split('.')
-    findings = []
-    
-    for s in sentences:
-        s = s.strip()
-        if len(s) > 20 and len(s) < 200:
-            findings.append(s)
-        if len(findings) >= max_findings:
-            break
-    
-    return findings if findings else ["See mechanistic explanation for details"]
 
 
 # ==================================================
@@ -715,7 +800,6 @@ def build_multihop_graph() -> StateGraph:
     
     workflow = StateGraph(RAGState)
     
-    # Add all nodes
     workflow.add_node("validate", validate_query_node)
     workflow.add_node("fetch", fetch_papers_node)
     workflow.add_node("retrieve", retrieve_papers_node)
@@ -723,35 +807,24 @@ def build_multihop_graph() -> StateGraph:
     workflow.add_node("expand", expand_query_node)
     workflow.add_node("generate", generate_answer_node)
     
-    # Entry point
     workflow.set_entry_point("validate")
     
-    # Validation routing
     workflow.add_conditional_edges(
         "validate",
         route_after_validation,
-        {
-            "reject": "generate",
-            "retrieve": "fetch"
-        }
+        {"reject": "generate", "retrieve": "fetch"}
     )
     
-    # Normal flow
     workflow.add_edge("fetch", "retrieve")
     workflow.add_edge("retrieve", "rerank")
     workflow.add_edge("rerank", "expand")
     
-    # Multi-hop loop
     workflow.add_conditional_edges(
         "expand",
         should_continue,
-        {
-            "continue": "retrieve",
-            "generate": "generate"
-        }
+        {"continue": "retrieve", "generate": "generate"}
     )
     
-    # End
     workflow.add_edge("generate", END)
     
     return workflow.compile()
@@ -797,13 +870,11 @@ class MultiHopRAG:
                 rejection_reason=""
             )
             
-            # Execute graph
             final_state = self.graph.invoke(initial_state)
             
             answer = final_state.get("final_answer", "No answer generated.")
             papers = final_state.get("ranked_papers", [])
             
-            # Log completion status
             if final_state.get("validation_result") and not final_state["validation_result"].is_valid:
                 log_info("🚫 Pipeline completed: Query rejected by domain guard")
             elif final_state.get("should_answer"):

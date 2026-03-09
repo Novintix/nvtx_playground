@@ -9,7 +9,7 @@ import traceback
 # Page Configuration
 # ==================================================
 st.set_page_config(
-    page_title="MedGuard Evidence - Medical Research Navigator",
+    page_title="MedGuard Evidence - Medical Research Literature Navigator",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -58,15 +58,38 @@ html, body, [class*="css"] {
     color: #cbd5e1 !important;
 }
 
-/* FIX: Selectbox dropdown - dark text for visibility */
+/* FIX: Selectbox container - light background */
+[data-testid="stSidebar"] .stSelectbox > div {
+    background-color: #f8fafc !important;
+}
+
+/* FIX: Selectbox input/control - dark text */
 [data-testid="stSidebar"] .stSelectbox > div > div {
     background-color: #f8fafc !important;
     color: #0f172a !important;
-    border-radius: 6px;
 }
 
-[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div {
+/* FIX: Selected value text - FORCE DARK */
+[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div,
+[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div > div,
+[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] span,
+[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] input {
     color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
+/* FIX: Dropdown menu options */
+[data-testid="stSidebar"] .stSelectbox [role="listbox"] {
+    background-color: #f8fafc !important;
+}
+
+[data-testid="stSidebar"] .stSelectbox [role="option"] {
+    color: #0f172a !important;
+    background-color: #f8fafc !important;
+}
+
+[data-testid="stSidebar"] .stSelectbox [role="option"]:hover {
+    background-color: #e2e8f0 !important;
 }
 
 /* ===== HEADER ===== */
@@ -160,24 +183,6 @@ button[kind="primary"] {
     margin-top: 30px;
 }
 
-/* ===== MARKDOWN TABLES ===== */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-}
-
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-th {
-    background-color: #f1f5f9;
-    font-weight: 600;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,13 +191,13 @@ th {
 # ==================================================
 st.markdown("<h1 class='title'>🛡️ MedGuard Evidence</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p class='subtitle'>Domain-Guarded Medical Research Navigator with Uncertainty Quantification</p>",
+    "<p class='subtitle'> Medical Research Literature Navigator</p>",
     unsafe_allow_html=True
 )
 st.markdown("---")
 
 # ==================================================
-# Sidebar - FIXED COLORS
+# UI CSS
 # ==================================================
 with st.sidebar:
     st.header("⚙️ Settings")
