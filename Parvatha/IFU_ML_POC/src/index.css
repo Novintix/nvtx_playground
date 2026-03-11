@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 26% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 26% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 26% 14%;
+
+    --primary: 174 58% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 220 26% 14%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 14% 45%;
+
+    --accent: 174 58% 95%;
+    --accent-foreground: 174 58% 30%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 216 20% 90%;
+    --input: 216 20% 90%;
+    --ring: 174 58% 39%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 10% 40%;
+    --sidebar-primary: 174 58% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 174 58% 95%;
+    --sidebar-accent-foreground: 174 58% 30%;
+    --sidebar-border: 216 20% 93%;
+    --sidebar-ring: 174 58% 39%;
+
+    --hero-gradient-start: 174 58% 39%;
+    --hero-gradient-end: 187 70% 45%;
+
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 220 26% 8%;
+    --foreground: 210 20% 96%;
+    --card: 220 26% 11%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 26% 11%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 174 58% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 16%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 220 20% 16%;
+    --muted-foreground: 215 14% 60%;
+    --accent: 174 40% 15%;
+    --accent-foreground: 174 58% 70%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 174 58% 45%;
+    --sidebar-background: 220 26% 10%;
+    --sidebar-foreground: 210 20% 70%;
+    --sidebar-primary: 174 58% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 174 40% 15%;
+    --sidebar-accent-foreground: 174 58% 70%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 174 58% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .font-serif-content {
+    font-family: 'Source Serif 4', Georgia, serif;
+  }
+}
