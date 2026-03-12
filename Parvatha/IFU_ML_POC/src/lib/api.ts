@@ -78,21 +78,28 @@ export async function translateSegments(
 
 /** Generate a PDF from translated segments using the frozen IFU template */
 export async function generatePdf(payload: GeneratePdfPayload): Promise<Blob> {
-  // Create FormData for file upload
+  // Create FormData to send to backend
   const formData = new FormData();
   
-  // We need to store the original file - this would be passed from the UI
-  // For now, we'll create a simple PDF using the translated text
-  // In production, you'd upload the original DOCX and segments together
+  // Send segments with type information for proper formatting
+  const segmentsJson = JSON.stringify(payload.segments);
+  formData.append("segments_json", segmentsJson);
   
-  const lines = payload.segments.map((s) => s.translated_text).join("\n\n");
+  // Also include the text for fallback
+  const text = payload.segments.map((s) => s.translated_text).join("\n\n");
+  formData.append("text", text);
+  formData.append("filename", `${payload.doc_title}_${payload.lang_key}`);
   
-  // Create a simple text-based PDF as placeholder
-  // The backend /export-frozen-pdf endpoint would be used in production
-  const content = `IFU Document: ${payload.doc_title}\nRef: ${payload.doc_ref}\nLanguage: ${payload.lang_key}\n\n${lines}`;
-  
-  // Return as a blob (in production this would be actual PDF from backend)
-  return new Blob([content], { type: "application/pdf" });
+  const response = await fetch(`${BASE_URL}/export-pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate PDF: ${response.statusText}`);
+  }
+
+  return response.blob();
 }
 
 /** Alternative: Generate PDF using backend endpoint (requires original DOCX) */

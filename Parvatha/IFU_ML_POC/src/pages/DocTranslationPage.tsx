@@ -123,12 +123,6 @@ const DocTranslationPage = () => {
             ))}
           </select>
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Model</label>
-          <div className="block w-44 rounded-md border bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Translation Engine
-          </div>
-        </div>
         <Button
           onClick={handleTranslate}
           disabled={translating || !targetLang || !hasSegments}

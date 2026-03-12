@@ -15,8 +15,8 @@ AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 
 MAX_CHUNK_CHARS = 1000
 
-# Translation mode: "aws" or "hf"
-TRANSLATION_MODE = os.getenv("TRANSLATION_MODE", "aws")
+# Translation mode: only AWS (gpt-oss-model-120b)
+TRANSLATION_MODE = "aws"
 
 # HuggingFace Inference API endpoint for NLLB
 HF_API_URL = "https://router.huggingface.co/models/facebook/nllb-200-distilled-600M"
@@ -37,8 +37,55 @@ LANGUAGE_CODES = {
     "Finnish": "fin_Latn",
 }
 
-# AWS Bedrock model configuration
+# AWS Bedrock model configuration - gpt-oss-model-120b only
 AWS_MODEL_ID = "openai.gpt-oss-120b-1:0"
+
+
+def _fix_reversed_text(text: str) -> str:
+    """
+    Detect and fix text that appears to be character-reversed.
+    This is a workaround for models that output reversed text.
+    """
+    if not text or len(text) < 4:
+        return text
+    
+    # Check if text appears to be reversed (common pattern: lowercase followed by uppercase at word boundaries)
+    # Example: "gnilebal" -> "balancing", "ecnavdA" -> "Advantage"
+    
+    words = text.split()
+    fixed_words = []
+    
+    for word in words:
+        # Check if this word might be reversed
+        # Heuristic: if the word has lowercase letters but starts with lowercase 
+        # and the original position would make more sense
+        if len(word) >= 4:
+            # Try reversing and check if it looks like a valid word
+            reversed_word = word[::-1]
+            
+            # If original has unusual patterns like "gn" at start (reversed "ng")
+            # or "dA" at end (reversed "Ad"), it's likely reversed
+            has_reversed_pattern = (
+                word[:2] in ['gn', 'tn', 'sn', 'rn', 'ln', 'dn'] or  # reversed endings like "ing", "and"
+                word[-2:] in ['dA', 'dA']  # reversed "Ad"
+            )
+            
+            # Also check if reversing produces more valid-looking patterns
+            if has_reversed_pattern:
+                # Check if reversing produces valid English-like patterns
+                if reversed_word[:2] not in ['gn', 'tn', 'sn'] and reversed_word[-2:] not in ['dA']:
+                    fixed_words.append(reversed_word)
+                    continue
+        
+        fixed_words.append(word)
+    
+    result = ' '.join(fixed_words)
+    
+    # If result is different and looks more reasonable, use it
+    if result != text:
+        print(f"[DEBUG] Fixed reversed text: '{text[:30]}...' -> '{result[:30]}...'")
+    
+    return result
 
 
 def get_language_code(language_name: str) -> str:
@@ -98,6 +145,9 @@ English: {text}
         # Parse the response
         response_body = json.loads(response['body'].read())
         
+        # DEBUG: Print raw response
+        print(f"[DEBUG] Raw AWS response: {json.dumps(response_body)[:500]}...")
+        
         # Extract the translated text from the response
         # OpenAI format returns 'choices' array with 'message' object
         if 'choices' in response_body and len(response_body['choices']) > 0:
@@ -124,6 +174,9 @@ English: {text}
         # Remove any trailing markers
         if f"{target_lang}:" in translated_text:
             translated_text = translated_text.split(f"{target_lang}:")[-1].strip()
+        
+        # Fix reversed text if detected
+        translated_text = _fix_reversed_text(translated_text)
             
         return translated_text if translated_text else None
 
@@ -195,35 +248,16 @@ def _translate_via_hf(text: str, target_lang: str = "fra_Latn") -> str:
 
 def _translate_with_fallback(text: str, target_lang: str = "French") -> str:
     """
-    Try to translate via API, fall back to mock translation if APIs fail.
+    Translate using only gpt-oss-model-120b via AWS Bedrock.
+    No fallback to other models.
     """
-    if TRANSLATION_MODE == "aws":
-        # Try AWS Bedrock first
-        translated = _translate_via_aws_bedrock(text, target_lang)
-        if translated:
-            return translated
-        
-        # Fall back to HuggingFace
-        print(f"AWS failed, trying HuggingFace...")
-        target_lang_code = get_language_code(target_lang)
-        translated = _translate_via_hf(text, target_lang_code)
-        if translated:
-            return translated
-    else:
-        # Try HuggingFace first
-        target_lang_code = get_language_code(target_lang)
-        translated = _translate_via_hf(text, target_lang_code)
-        if translated:
-            return translated
-        
-        # Fall back to AWS Bedrock
-        print(f"HuggingFace failed, trying AWS Bedrock...")
-        translated = _translate_via_aws_bedrock(text, target_lang)
-        if translated:
-            return translated
+    # Use only AWS Bedrock with gpt-oss-model-120b
+    translated = _translate_via_aws_bedrock(text, target_lang)
+    if translated:
+        return translated
     
-    # Both APIs failed - return original text with language indicator
-    print(f"All translation APIs failed for: {text[:50]}...")
+    # If translation fails, return original text with language indicator
+    print(f"Translation failed for: {text[:50]}...")
     return f"[{target_lang}] {text}"
 
 

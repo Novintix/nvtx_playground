@@ -138,17 +138,76 @@ async def translate_segments_endpoint(
 @app.post("/export-pdf")
 async def export_pdf(
     text: str = Form(...),
-    filename: str = Form("translated")
+    filename: str = Form("translated"),
+    segments_json: Optional[str] = Form(None)
 ):
-    """Generate a simple plain-text PDF from translated text."""
+    """
+    Generate a PDF from translated text or segments with proper formatting.
+    If segments_json is provided, uses segment types for formatting.
+    """
     try:
+        print(f"Generating PDF for text length: {len(text)}")
+        
+        # Check if we have segment information for proper formatting
+        if segments_json:
+            try:
+                import json
+                segments = json.loads(segments_json)
+                if segments and len(segments) > 0:
+                    # Use frozen template PDF with segment types
+                    pdf_bytes = create_frozen_template_pdf(
+                        original_file=b'',
+                        segments=segments,
+                        target_lang="",
+                        doc_title=filename.replace(".pdf", "").replace("_", " ").title(),
+                        doc_ref="DOC-001"
+                    )
+                    print(f"PDF generated with formatting, size: {len(pdf_bytes)} bytes")
+                    
+                    header = pdf_bytes[:8]
+                    print(f"PDF header: {header}")
+                    print(f"Is valid PDF: {header == b'%PDF-1.'}")
+                    
+                    headers = {
+                        "Content-Disposition": f'attachment; filename="{filename}.pdf"',
+                        "Content-Type": "application/pdf",
+                    }
+                    
+                    return Response(
+                        content=pdf_bytes,
+                        media_type="application/pdf",
+                        headers=headers,
+                    )
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse segments JSON: {e}")
+        
+        # Fallback to plain text PDF
         pdf_bytes = create_translated_pdf(text, filename)
+        print(f"PDF generated, size: {len(pdf_bytes)} bytes")
+        
+        # Verify PDF header
+        header = pdf_bytes[:8]
+        print(f"PDF header: {header}")
+        print(f"Is valid PDF: {header == b'%PDF-1.'}")
+        
+        # Create response with proper headers
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}.pdf"',
+            "Content-Type": "application/pdf",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+        
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+            headers=headers,
         )
     except Exception as e:
+        print(f"Export PDF error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -312,6 +371,24 @@ async def export_excel(req: ExcelExportRequest):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "IFU Translator API"}
+
+
+@app.get("/test-pdf")
+async def test_pdf():
+    """Test endpoint that returns a simple valid PDF."""
+    # Create a minimal valid PDF
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_text(fitz.Point(50, 50), "Test PDF - This is a test!", fontsize=16, fontname="helv")
+    pdf_bytes = doc.tobytes()
+    
+    print(f"Test PDF generated, size: {len(pdf_bytes)}, header: {pdf_bytes[:10]}")
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="test.pdf"'},
+    )
 
 
 if __name__ == "__main__":
