@@ -1,9 +1,33 @@
+# Environments
 .env
-backend/.env
+.env.*
+.venv/
+venv/
+env/
+ENV/
+
+# Python / FastAPI
 __pycache__/
+*.py
 *.pyc
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+backend/glossary.json
+glossary.json
+
+# Node.js / React / Vite
 node_modules/
 frontend/dist/
-glossary.json
-backend/glossary.json
-venv/
+frontend/dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+
+# OS Files
+.DS_Store
+Thumbs.db
