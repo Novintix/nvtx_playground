@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+boto3
+python-dotenv
+PyMuPDF
+fpdf2
+python-docx
+transformers
+torch
+openpyxl
+xhtml2pdf
+lxml
