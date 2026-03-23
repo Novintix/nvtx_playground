@@ -5,9 +5,7 @@ from languages import LANGUAGES
 MAX_CHUNK_CHARS = 1000
 
 MODELS = {
-    "600m": "facebook/nllb-200-distilled-600M",
-    # "1.3b": "facebook/nllb-200-distilled-1.3B",
-    # "3.3b": "facebook/nllb-200-3.3B",
+    "600m": "facebook/nllb-200-distilled-600M"
 }
 
 # Cache: model_key -> (tokenizer, model)
