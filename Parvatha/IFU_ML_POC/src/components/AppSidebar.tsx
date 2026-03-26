@@ -1,7 +1,6 @@
 import {
   Home,
   FileText,
-  Type,
   FolderOpen,
   BarChart3,
   Settings,
@@ -22,7 +21,6 @@ import {
 const items = [
   { title: "Home", url: "/", icon: Home },
   { title: "Doc Translation", url: "/doc-translation", icon: FileText },
-  { title: "Text Translation", url: "/text-translation", icon: Type },
   { title: "Files", url: "/files", icon: FolderOpen },
   { title: "Statistics", url: "/statistics", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
@@ -35,7 +33,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <div className="px-5 py-5">
         <h1 className="text-lg font-bold text-foreground tracking-tight">
-          DocTranslate
+          IFU multilingual translator
         </h1>
       </div>
       <SidebarContent>

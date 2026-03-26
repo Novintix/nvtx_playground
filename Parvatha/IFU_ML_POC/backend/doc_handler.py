@@ -7,6 +7,192 @@ import io
 import re
 
 
+# Multilingual PDF generation function
+def create_multilingual_pdf(
+    original_segments: list[dict],
+    translations: list[dict],
+    doc_title: str = "IFU Document",
+    doc_ref: str = "IFU-001"
+) -> bytes:
+    """
+    Generate a multilingual PDF with English content and all target language translations.
+    Creates a contents page after the deputy synthesis page listing all languages and their starting page numbers.
+    """
+    import fitz
+    
+    page_width = 595
+    page_height = 842
+    margin_left = 50
+    margin_right = 50
+    margin_top = 60
+    content_width = page_width - margin_left - margin_right
+    
+    doc = fitz.open()
+    
+    color_black = (0, 0, 0)
+    color_dark_blue = (0.1, 0.2, 0.4)
+    color_gray = (0.5, 0.5, 0.5)
+    
+    def wrap_text(text, max_width, fontsize):
+        words = text.split()
+        lines = []
+        current_line = []
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            estimated_width = len(test_line) * fontsize * 0.4
+            if estimated_width <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(' '.join(current_line))
+        return lines if lines else [""]
+    
+    def add_new_page():
+        return doc.new_page(width=page_width, height=page_height)
+    
+    def check_new_page(y_pos, required_height):
+        if y_pos + required_height > page_height - 50:
+            return add_new_page(), margin_top
+        return None, y_pos
+    
+    def insert_text_func(page, x, y, text, fontsize, color, max_width=None):
+        if max_width:
+            lines = wrap_text(text, max_width, fontsize)
+            for line in lines:
+                page.insert_text(fitz.Point(x, y), line, fontsize=fontsize, color=color)
+                y += fontsize * 1.4
+            return y
+        else:
+            page.insert_text(fitz.Point(x, y), text, fontsize=fontsize, color=color)
+            return y + fontsize * 1.4
+    
+    # Cover Page
+    page = add_new_page()
+    y = margin_top + 30
+    title_text = doc_title.replace("_", " ").title()
+    text_width = len(title_text) * 20 * 0.4
+    x = (page_width - text_width) / 2
+    page.insert_text(fitz.Point(x, y), title_text, fontsize=20, color=color_dark_blue)
+    y += 40
+    page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=(0.7, 0.7, 0.7), width=1)
+    y += 30
+    page.insert_text(fitz.Point(margin_left, y), f"Document Reference: {doc_ref}", fontsize=12, color=color_black)
+    y += 20
+    page.insert_text(fitz.Point(margin_left, y), f"Languages: English + {len(translations)} target language(s)", fontsize=12, color=color_black)
+    y += 40
+    page.insert_text(fitz.Point(margin_left, y), "Target Languages:", fontsize=14, color=color_dark_blue)
+    y += 25
+    for i, trans in enumerate(translations):
+        lang = trans.get('language', 'Unknown')
+        page.insert_text(fitz.Point(margin_left + 20, y), f"{i+1}. {lang}", fontsize=11, color=color_black)
+        y += 18
+    y += 20
+    page.insert_text(fitz.Point(margin_left, y), "This document contains confidential medical device information.", fontsize=10, color=color_gray)
+    
+    # Deputy Synthesis Page
+    page = add_new_page()
+    y = margin_top
+    text_width = len("Deputy Synthesis") * 18 * 0.4
+    x = (page_width - text_width) / 2
+    page.insert_text(fitz.Point(x, y), "Deputy Synthesis", fontsize=18, color=color_dark_blue)
+    y += 30
+    page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=color_dark_blue, width=0.5)
+    y += 25
+    synthesis_text = f"This multilingual IFU document contains the original English version along with {len(translations)} target language(s) as required by EU MDR 2017/745 and FDA regulations."
+    y = insert_text_func(page, margin_left, y, synthesis_text, 11, color_black, content_width)
+    
+    # Contents Page
+    page = add_new_page()
+    y = margin_top
+    text_width = len("Contents") * 18 * 0.4
+    x = (page_width - text_width) / 2
+    page.insert_text(fitz.Point(x, y), "Contents", fontsize=18, color=color_dark_blue)
+    y += 30
+    page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=color_dark_blue, width=0.5)
+    y += 25
+    page.insert_text(fitz.Point(margin_left, y), "Language", fontsize=14, color=color_dark_blue)
+    page.insert_text(fitz.Point(page_width - margin_right - 80, y), "Page No.", fontsize=14, color=color_dark_blue)
+    y += 5
+    page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=color_gray, width=0.3)
+    y += 20
+    page.insert_text(fitz.Point(margin_left, y), "English", fontsize=12, color=color_black)
+    page.insert_text(fitz.Point(page_width - margin_right - 80, y), "4", fontsize=12, color=color_black)
+    y += 20
+    
+    current_page = 4
+    for trans in translations:
+        lang = trans.get('language', 'Unknown')
+        page_count = len(trans.get('segments', []))
+        lang_pages = max(1, (page_count // 30) + 1)
+        current_page += lang_pages
+        page.insert_text(fitz.Point(margin_left, y), lang, fontsize=12, color=color_black)
+        page.insert_text(fitz.Point(page_width - margin_right - 80, y), str(current_page), fontsize=12, color=color_black)
+        y += 20
+    
+    # English Content
+    page = add_new_page()
+    y = margin_top
+    text_width = len("English Version") * 16 * 0.4
+    x = (page_width - text_width) / 2
+    page.insert_text(fitz.Point(x, y), "English Version", fontsize=16, color=color_dark_blue)
+    y += 25
+    page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=color_dark_blue, width=0.5)
+    y += 20
+    for seg in original_segments:
+        text = seg.get('text', '')
+        seg_type = seg.get('type', 'p')
+        if not text:
+            continue
+        new_page_needed, y = check_new_page(y, 50)
+        if new_page_needed:
+            page = new_page_needed
+        if seg_type in ['h1']:
+            y = insert_text_func(page, margin_left, y, text, 16, color_dark_blue, content_width)
+            y += 10
+        elif seg_type in ['h2']:
+            y = insert_text_func(page, margin_left, y, text, 14, color_dark_blue, content_width)
+            y += 8
+        else:
+            y = insert_text_func(page, margin_left, y, text, 11, color_black, content_width)
+            y += 8
+    
+    # Each Target Language
+    for trans in translations:
+        lang = trans.get('language', 'Unknown')
+        segments = trans.get('segments', [])
+        page = add_new_page()
+        y = margin_top
+        header_text = f"{lang} Version"
+        text_width = len(header_text) * 16 * 0.4
+        x = (page_width - text_width) / 2
+        page.insert_text(fitz.Point(x, y), header_text, fontsize=16, color=color_dark_blue)
+        y += 25
+        page.draw_line(fitz.Point(margin_left, y), fitz.Point(page_width - margin_right, y), color=color_dark_blue, width=0.5)
+        y += 20
+        for seg in segments:
+            text = seg.get('translated_text', '')
+            seg_type = seg.get('type', 'p')
+            if not text:
+                continue
+            new_page_needed, y = check_new_page(y, 50)
+            if new_page_needed:
+                page = new_page_needed
+            if seg_type in ['h1']:
+                y = insert_text_func(page, margin_left, y, text, 16, color_dark_blue, content_width)
+                y += 10
+            elif seg_type in ['h2']:
+                y = insert_text_func(page, margin_left, y, text, 14, color_dark_blue, content_width)
+                y += 8
+            else:
+                y = insert_text_func(page, margin_left, y, text, 11, color_black, content_width)
+                y += 8
+    
+    return doc.tobytes()
+
+
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     """Extract plain text from PDF bytes."""
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:

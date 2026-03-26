@@ -1,3 +1,10 @@
+import sys
+import io
+
+# Set UTF-8 encoding for stdout/stderr to handle special characters
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
@@ -18,6 +25,7 @@ from doc_handler import (
     extract_text_from_pdf,
     create_translated_pdf,
     extract_text_from_docx,
+    create_multilingual_pdf,
     extract_text_plain_from_docx,
     create_frozen_template_pdf,
 )
@@ -371,6 +379,47 @@ async def export_excel(req: ExcelExportRequest):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "IFU Translator API"}
+
+
+# ============================================================================
+# Multilingual PDF Export
+# ============================================================================
+
+@app.post("/export-multilingual-pdf")
+async def export_multilingual_pdf(
+    doc_title: str = Form("IFU Document"),
+    doc_ref: str = Form("IFU-001"),
+    segments_json: str = Form(...),
+    translations_json: str = Form(...)
+):
+    """
+    Generate a multilingual PDF with English and all target language translations.
+    Creates a contents page after the deputy synthesis page listing all languages and their starting page numbers.
+    """
+    try:
+        # Parse the JSON data
+        original_segments = json.loads(segments_json)
+        translations = json.loads(translations_json)
+        
+        # Generate the multilingual PDF
+        pdf_bytes = create_multilingual_pdf(
+            original_segments=original_segments,
+            translations=translations,
+            doc_title=doc_title,
+            doc_ref=doc_ref
+        )
+        
+        filename = f"{doc_title.replace(' ', '_')}_multilingual"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+        )
+    except Exception as e:
+        print(f"Error generating multilingual PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/test-pdf")

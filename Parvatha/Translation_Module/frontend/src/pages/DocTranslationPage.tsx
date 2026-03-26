@@ -1,14 +1,15 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Download, FileText, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, Download, FileText, Loader2, CheckCircle2, X, Globe } from "lucide-react";
 import { useTranslationStore } from "@/store/useTranslationStore";
-import { uploadDocument, translateSegments, generatePdf, updateGlossary } from "@/lib/api";
+import { uploadDocument, translateSegments, generatePdf, generateMultilingualPdf, updateGlossary } from "@/lib/api";
 import type { Segment, TranslatedSegment, ValidationSummary } from "@/lib/api";
 import { SegmentViewer } from "@/components/doc-translation/SegmentViewer";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 const LANGUAGES = [
   { code: 'fr', name: 'French' },
@@ -51,16 +52,23 @@ const LANGUAGES = [
   { code: 'ms', name: 'Malay' },
 ];
 
+interface LanguageTranslation {
+  langCode: string;
+  langName: string;
+  segments: TranslatedSegment[];
+  validationSummary?: ValidationSummary;
+  completed: boolean;
+}
+
 const DocTranslationPage = () => {
-  const [targetLang, setTargetLang] = useState("");
+  const [targetLangs, setTargetLangs] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [progress, setProgress] = useState({ done: 0, total: 0, currentLang: '' });
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [translated, setTranslated] = useState<TranslatedSegment[]>([]);
-  const [validationSummary, setValidationSummary] = useState<ValidationSummary | null>(null);
+  const [languageTranslations, setLanguageTranslations] = useState<LanguageTranslation[]>([]);
   
   // Glossary Review State
   const [showGlossaryModal, setShowGlossaryModal] = useState(false);
@@ -68,12 +76,22 @@ const DocTranslationPage = () => {
   const [selectedCorrections, setSelectedCorrections] = useState<Set<number>>(new Set());
   const [savingGlossary, setSavingGlossary] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"original" | "translated">("original");
+  // Active tab state - can be "original" or any language code
+  const [activeTab, setActiveTab] = useState<string>("original");
   const [fileName, setFileName] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addFile, updateFileStatus, updateFileTranslation, updatePdfGenerated } = useTranslationStore();
+  const { addFile, updateFileStatus, updatePdfGenerated } = useTranslationStore();
   const [lastFileId, setLastFileId] = useState<string>("");
+
+  // Handle multi-language selection
+  const toggleLanguage = (code: string) => {
+    setTargetLangs(prev => 
+      prev.includes(code) 
+        ? prev.filter(c => c !== code)
+        : [...prev, code]
+    );
+  };
 
   const handleFiles = async (fileList: FileList) => {
     console.log("Files received:", fileList);
@@ -91,7 +109,7 @@ const DocTranslationPage = () => {
 
     setFileName(file.name);
     setUploading(true);
-    setTranslated([]);
+    setLanguageTranslations([]);
     setActiveTab("original");
 
     try {
@@ -104,7 +122,7 @@ const DocTranslationPage = () => {
       const fileId = addFile({
         name: file.name,
         sourceLanguage: "English",
-        targetLanguage: targetLang || "Unselected",
+        targetLanguage: targetLangs.length > 0 ? targetLangs.map(c => LANGUAGES.find(l => l.code === c)?.name || c).join(", ") : "Unselected",
         status: "Pending",
         wordCount: wordCount,
       });
@@ -118,11 +136,20 @@ const DocTranslationPage = () => {
   };
 
   const handleTranslate = async () => {
-    if (!targetLang || segments.length === 0 || !uploadedFile) return;
+    if (targetLangs.length === 0 || segments.length === 0 || !uploadedFile) return;
     setTranslating(true);
-    setProgress({ done: 0, total: segments.length });
-    setActiveTab("translated");
-    setValidationSummary(null);
+    setProgress({ done: 0, total: segments.length * targetLangs.length, currentLang: targetLangs[0] });
+    setActiveTab("original");
+    setLanguageTranslations([]);
+
+    // Initialize language translation objects
+    const langTranslations: LanguageTranslation[] = targetLangs.map(code => ({
+      langCode: code,
+      langName: LANGUAGES.find(l => l.code === code)?.name || code,
+      segments: [],
+      completed: false
+    }));
+    setLanguageTranslations(langTranslations);
 
     // Update status to processing
     if (lastFileId) {
@@ -130,26 +157,47 @@ const DocTranslationPage = () => {
     }
 
     try {
-      const result = await translateSegments(segments, targetLang, uploadedFile, (done, total) => {
-        setProgress({ done, total });
-      });
-      setTranslated(result.segments);
-      setValidationSummary(result.validationSummary || null);
+      // Translate to each selected language sequentially
+      for (let i = 0; i < targetLangs.length; i++) {
+        const targetLang = targetLangs[i];
+        const langName = LANGUAGES.find(l => l.code === targetLang)?.name || targetLang;
+        
+        setProgress(prev => ({ ...prev, currentLang: langName }));
+        
+        const result = await translateSegments(segments, targetLang, uploadedFile, (done, total) => {
+          const langIndex = targetLangs.indexOf(targetLang);
+          const completedSoFar = langIndex * segments.length + done;
+          setProgress({ done: completedSoFar, total: segments.length * targetLangs.length, currentLang: langName });
+        });
+        
+        // Update the language translation with results
+        setLanguageTranslations(prev => prev.map((lang, idx) => 
+          idx === i 
+            ? { ...lang, segments: result.segments, validationSummary: result.validationSummary || undefined, completed: true }
+            : lang
+        ));
+      }
       
-      // Extract all corrections from segments
+      // Extract all corrections from all translations
       const corrections: Array<{original: string, mistranslated: string, correct: string, context: string}> = [];
-      result.segments.forEach(seg => {
-        if (seg.validation && seg.validation.corrections) {
-          corrections.push(...seg.validation.corrections);
-        }
+      langTranslations.forEach(lang => {
+        lang.segments.forEach(seg => {
+          if (seg.validation && seg.validation.corrections) {
+            corrections.push(...seg.validation.corrections);
+          }
+        });
       });
       setAllCorrections(corrections);
-      setSelectedCorrections(new Set(corrections.map((_, i) => i))); // Select all by default
+      setSelectedCorrections(new Set(corrections.map((_, i) => i)));
       
-      // Update status to completed and store translations
+      // Set first completed language as active tab
+      if (langTranslations.length > 0 && langTranslations[0].completed) {
+        setActiveTab(langTranslations[0].langCode);
+      }
+      
+      // Update status to completed
       if (lastFileId) {
-        const langName = LANGUAGES.find(l => l.code === targetLang)?.name || targetLang;
-        updateFileTranslation(lastFileId, result.segments, langName);
+        updateFileStatus(lastFileId, "Completed");
       }
     } finally {
       setTranslating(false);
@@ -157,31 +205,64 @@ const DocTranslationPage = () => {
   };
 
   const handleGeneratePdf = async () => {
-    if (translated.length === 0 || !uploadedFile) return;
-    setGenerating(true);
-    try {
-      // The generatePdf api wrapper actually hits /export-frozen-pdf
-      // and now returns a DOCX file that was converted to PDF server-side.
-      const blob = await generatePdf(
-        uploadedFile,
-        translated,
-        targetLang,
-        fileName.replace(/\.[^.]+$/, ""),
-        `IFU-${Date.now()}`
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName.replace(/\.[^.]+$/, "")}_${targetLang}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      
-      // Track translation generation
-      if (lastFileId) {
-        updatePdfGenerated(lastFileId);
+    if (languageTranslations.length === 0 || !uploadedFile) return;
+    
+    // Check if we have single or multiple translations
+    const completedTranslations = languageTranslations.filter(l => l.completed);
+    
+    if (completedTranslations.length === 1) {
+      // Single language - use original PDF generation
+      const lang = completedTranslations[0];
+      setGenerating(true);
+      try {
+        const blob = await generatePdf(
+          uploadedFile,
+          lang.segments,
+          lang.langCode,
+          fileName.replace(/\.[^.]+$/, ""),
+          `IFU-${Date.now()}`
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${fileName.replace(/\.[^.]+$/, "")}_${lang.langCode}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        if (lastFileId) {
+          updatePdfGenerated(lastFileId);
+        }
+      } finally {
+        setGenerating(false);
       }
-    } finally {
-      setGenerating(false);
+    } else if (completedTranslations.length > 1) {
+      // Multiple languages - use multilingual PDF generation
+      setGenerating(true);
+      try {
+        const translationsMap: Record<string, TranslatedSegment[]> = {};
+        completedTranslations.forEach(lang => {
+          translationsMap[lang.langCode] = lang.segments;
+        });
+        
+        const blob = await generateMultilingualPdf(
+          uploadedFile,
+          translationsMap,
+          fileName.replace(/\.[^.]+$/, ""),
+          `IFU-${Date.now()}`
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${fileName.replace(/\.[^.]+$/, "")}_multilingual.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        if (lastFileId) {
+          updatePdfGenerated(lastFileId);
+        }
+      } finally {
+        setGenerating(false);
+      }
     }
   };
 
@@ -191,8 +272,12 @@ const DocTranslationPage = () => {
     setSavingGlossary(true);
     try {
       const selectedItems = allCorrections.filter((_, i) => selectedCorrections.has(i));
-      const res = await updateGlossary(selectedItems, targetLang);
-      alert(`Successfully added ${res.added} items to the ${LANGUAGES.find(l => l.code === targetLang)?.name} glossary!`);
+      // Save to the currently active language's glossary
+      const currentLang = activeTab === "original" 
+        ? targetLangs[0] 
+        : activeTab;
+      const res = await updateGlossary(selectedItems, currentLang);
+      alert(`Successfully added ${res.added} items to the ${LANGUAGES.find(l => l.code === currentLang)?.name} glossary!`);
       setShowGlossaryModal(false);
     } catch (error) {
       console.error("Failed to update glossary:", error);
@@ -213,8 +298,15 @@ const DocTranslationPage = () => {
   };
 
   const hasSegments = segments.length > 0;
-  const hasTranslation = translated.length > 0;
+  const completedTranslations = languageTranslations.filter(l => l.completed);
+  const hasTranslation = completedTranslations.length > 0;
+  const isMultilingual = completedTranslations.length > 1;
   const progressPct = progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
+
+  // Get current language translation for display
+  const currentLangTranslation = activeTab !== "original" 
+    ? languageTranslations.find(l => l.langCode === activeTab)
+    : null;
 
   return (
     <div className="p-6 lg:p-10 space-y-6">
@@ -232,21 +324,26 @@ const DocTranslationPage = () => {
         </div>
         <div className="text-muted-foreground text-lg pb-2">→</div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Target Language</label>
-          <select
-            value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value)}
-            className="block w-44 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">Select language</option>
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>{l.name}</option>
+          <label className="text-xs font-medium text-muted-foreground">Target Languages (select multiple)</label>
+          <div className="flex flex-wrap gap-2">
+            {LANGUAGES.map((lang) => (
+              <Button
+                key={lang.code}
+                variant={targetLangs.includes(lang.code) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleLanguage(lang.code)}
+                className="text-xs"
+                disabled={translating}
+              >
+                {lang.name}
+                {targetLangs.includes(lang.code) && <CheckCircle2 className="ml-1 h-3 w-3" />}
+              </Button>
             ))}
-          </select>
+          </div>
         </div>
         <Button
           onClick={handleTranslate}
-          disabled={translating || !targetLang || !hasSegments}
+          disabled={translating || targetLangs.length === 0 || !hasSegments}
         >
           {translating ? (
             <>
@@ -254,7 +351,10 @@ const DocTranslationPage = () => {
               Translating...
             </>
           ) : (
-            "Translate"
+            <>
+              <Globe className="mr-2 h-4 w-4" />
+              Translate to {targetLangs.length} {targetLangs.length === 1 ? 'Language' : 'Languages'}
+            </>
           )}
         </Button>
         {hasTranslation && (
@@ -268,7 +368,7 @@ const DocTranslationPage = () => {
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Download PDF
+                  {isMultilingual ? 'Download Multilingual PDF' : 'Download PDF'}
                 </>
               )}
             </Button>
@@ -276,38 +376,55 @@ const DocTranslationPage = () => {
         )}
       </div>
 
+      {/* Selected languages display */}
+      {targetLangs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Selected:</span>
+          {targetLangs.map(code => (
+            <Badge key={code} variant="secondary" className="gap-1">
+              {LANGUAGES.find(l => l.code === code)?.name}
+              <X 
+                className="h-3 w-3 cursor-pointer" 
+                onClick={() => !translating && toggleLanguage(code)}
+              />
+            </Badge>
+          ))}
+        </div>
+      )}
+
       {/* Translation progress */}
       {translating && (
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Translating and validating segments...</span>
-            <span>{progress.done}/{progress.total}</span>
+            <span>Translating to {progress.currentLang}... ({progress.done}/{progress.total} segments)</span>
+            <span>{Math.round(progressPct)}%</span>
           </div>
           <Progress value={progressPct} className="h-2" />
         </div>
       )}
 
       {/* Validation Summary */}
-      {validationSummary && (
+      {hasTranslation && !translating && (
         <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <h3 className="font-semibold mb-3">Validation Summary</h3>
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div className="p-3 rounded-lg bg-muted">
-              <div className="text-2xl font-bold">{validationSummary.total}</div>
-              <div className="text-xs text-muted-foreground">Validated</div>
-            </div>
-            <div className="p-3 rounded-lg bg-green-50">
-              <div className="text-2xl font-bold text-green-600">{validationSummary.passed}</div>
-              <div className="text-xs text-green-600">PASS</div>
-            </div>
-            <div className="p-3 rounded-lg bg-red-50">
-              <div className="text-2xl font-bold text-red-600">{validationSummary.failed}</div>
-              <div className="text-xs text-red-600">FAIL</div>
-            </div>
-            <div className="p-3 rounded-lg bg-yellow-50">
-              <div className="text-2xl font-bold text-yellow-600">{validationSummary.errors}</div>
-              <div className="text-xs text-yellow-600">Errors</div>
-            </div>
+          <h3 className="font-semibold mb-3">Translation Status</h3>
+          <div className="flex flex-wrap gap-3">
+            {languageTranslations.map(lang => (
+              <div key={lang.langCode} className={`p-3 rounded-lg ${lang.completed ? 'bg-green-50 border border-green-200' : 'bg-muted'}`}>
+                <div className="flex items-center gap-2">
+                  {lang.completed ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  <span className="font-medium">{lang.langName}</span>
+                </div>
+                {lang.validationSummary && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {lang.validationSummary.passed}/{lang.validationSummary.total} passed
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
           
           {allCorrections.length > 0 && (
@@ -355,8 +472,8 @@ const DocTranslationPage = () => {
       {/* Document workspace */}
       {hasSegments && (
         <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-          {/* Tab headers */}
-          <div className="border-b flex">
+          {/* Tab headers - Dynamic tabs that can be switched during translation */}
+          <div className="border-b flex flex-wrap">
             <button
               onClick={() => setActiveTab("original")}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -368,33 +485,44 @@ const DocTranslationPage = () => {
               <FileText className="h-4 w-4" />
               Original ({segments.length} segments)
             </button>
-            <button
-              onClick={() => setActiveTab("translated")}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "translated"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {hasTranslation && <CheckCircle2 className="h-4 w-4 text-primary" />}
-              Translated {hasTranslation ? `(${translated.length})` : ""}
-            </button>
+            {/* Language tabs - can be switched during translation */}
+            {languageTranslations.map(lang => (
+              <button
+                key={lang.langCode}
+                onClick={() => setActiveTab(lang.langCode)}
+                disabled={!lang.completed && translating}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === lang.langCode
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {lang.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                ) : translating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Globe className="h-4 w-4" />
+                )}
+                {lang.langName} {lang.segments.length > 0 ? `(${lang.segments.length})` : ""}
+              </button>
+            ))}
           </div>
 
           {/* Content */}
           <div className="p-6 max-h-[60vh] overflow-auto">
             {activeTab === "original" ? (
               <SegmentViewer segments={segments} />
-            ) : hasTranslation ? (
+            ) : currentLangTranslation && currentLangTranslation.segments.length > 0 ? (
               <SegmentViewer
                 segments={segments}
-                translations={translated}
+                translations={currentLangTranslation.segments}
               />
             ) : (
               <p className="text-muted-foreground text-sm italic py-8 text-center">
                 {translating
                   ? "Translation in progress..."
-                  : "Select a target language and click Translate to begin."}
+                  : "Translation not yet available for this language."}
               </p>
             )}
           </div>

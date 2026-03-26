@@ -33,7 +33,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <div className="px-5 py-5">
         <h1 className="text-lg font-bold text-foreground tracking-tight">
-          DocTranslate
+          IFU multilingual translator
         </h1>
       </div>
       <SidebarContent>

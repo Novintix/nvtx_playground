@@ -15,7 +15,7 @@ const HomePage = () => {
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-primary/70 p-10 lg:p-14">
         <div className="relative z-10 max-w-2xl">
           <h1 className="text-3xl lg:text-4xl font-bold text-primary-foreground leading-tight mb-4">
-            Delivering Precision in Large-Scale Technical Document Translation
+            Medical device IFU multilingual translation
           </h1>
           <p className="text-primary-foreground/80 text-lg mb-8">
             Upload and translate technical documents into multiple languages with AI-powered batch translation.

@@ -171,3 +171,28 @@ export async function updateGlossary(
 
   return response.json();
 }
+
+/** Generate a multilingual PDF with multiple target languages */
+export async function generateMultilingualPdf(
+  originalFile: File,
+  translationsMap: Record<string, TranslatedSegment[]>, // langCode -> segments
+  docTitle: string,
+  docRef: string
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('file', originalFile);
+  formData.append('translations_map', JSON.stringify(translationsMap));
+  formData.append('doc_title', docTitle);
+  formData.append('doc_ref', docRef);
+
+  const response = await fetch(`${BASE_URL}/export-multilingual-pdf`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate multilingual PDF: ${response.statusText}`);
+  }
+
+  return response.blob();
+}

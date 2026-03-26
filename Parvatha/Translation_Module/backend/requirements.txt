@@ -6,8 +6,10 @@ python-dotenv
 PyMuPDF
 fpdf2
 python-docx
+docx2pdf
 transformers
 torch
 openpyxl
 xhtml2pdf
 lxml
+spacy

@@ -25,35 +25,7 @@ interface TranslationStore {
 }
 
 export const useTranslationStore = create<TranslationStore>((set) => ({
-  files: [
-    {
-      id: '1',
-      name: 'technical_manual_v2.docx',
-      sourceLanguage: 'English',
-      targetLanguage: 'Japanese',
-      status: 'Completed',
-      wordCount: 12450,
-      createdDate: '2026-03-08',
-    },
-    {
-      id: '2',
-      name: 'api_documentation.pdf',
-      sourceLanguage: 'English',
-      targetLanguage: 'German',
-      status: 'Processing',
-      wordCount: 8320,
-      createdDate: '2026-03-09',
-    },
-    {
-      id: '3',
-      name: 'user_guide_v1.txt',
-      sourceLanguage: 'English',
-      targetLanguage: 'French',
-      status: 'Pending',
-      wordCount: 5200,
-      createdDate: '2026-03-10',
-    },
-  ],
+  files: [],
   addFile: (file) =>
     set((state) => ({
       files: [

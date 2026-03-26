@@ -21,9 +21,7 @@ const SettingsPage = () => {
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">Default Target Language</label>
               <select className="block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground">
-                <option>Japanese</option>
-                <option>German</option>
-                <option>French</option>
+                <option value="">None (Select at translation time)</option>
               </select>
             </div>
             <div className="space-y-1">

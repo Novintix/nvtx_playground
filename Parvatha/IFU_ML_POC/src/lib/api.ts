@@ -128,3 +128,34 @@ export async function generatePdfFromBackend(
 
   return response.blob();
 }
+
+/** Generate a multilingual PDF with English and all target languages */
+export async function generateMultilingualPdf(
+  originalSegments: Segment[],
+  translations: { language: string; segments: TranslatedSegment[] }[],
+  docTitle: string,
+  docRef: string
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("doc_title", docTitle);
+  formData.append("doc_ref", docRef);
+  
+  // Send original segments for English content
+  const segmentsJson = JSON.stringify(originalSegments);
+  formData.append("segments_json", segmentsJson);
+  
+  // Send all translations
+  const translationsJson = JSON.stringify(translations);
+  formData.append("translations_json", translationsJson);
+
+  const response = await fetch(`${BASE_URL}/export-multilingual-pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate multilingual PDF: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
