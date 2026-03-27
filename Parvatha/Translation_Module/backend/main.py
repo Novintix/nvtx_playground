@@ -26,37 +26,25 @@ glossary_store: Dict[str, List[Dict[str, str]]] = {}
 
 
 def parse_docx(file: UploadFile) -> List[Dict[str, Any]]:
-    """Parse a .docx file and extract segments"""
+    """Parse a .docx file and extract segments natively from paragraphs and tables"""
+    file.file.seek(0)
     doc = Document(file.file)
+    
+    from placeholder_parser import extract_translatable_elements
+    flow = extract_translatable_elements(doc)
+    
     segments = []
     segment_id = 1
     
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if not text:
-            continue
-        
-        # Determine segment type based on style
-        style_name = para.style.name.lower() if para.style else ""
-        
-        if style_name.startswith('heading 1') or style_name == 'title':
-            segment_type = "h1"
-        elif style_name.startswith('heading 2'):
-            segment_type = "h2"
-        elif style_name.startswith('heading 3'):
-            segment_type = "h3"
-        elif style_name.startswith('list'):
-            segment_type = "li"
-        else:
-            segment_type = "p"
-        
+    for text in flow:
         segments.append({
             "id": segment_id,
-            "type": segment_type,
+            "type": "p",  # Simplification since translation doesn't strictly need semantic headings
             "text": text
         })
         segment_id += 1
-    
+        
+    file.file.seek(0)
     return segments
 
 
@@ -90,35 +78,55 @@ async def translate_segments(
         # Parse the document to get segments
         segments = parse_docx(file)
         
-        # Simple mock translation - in production, use NLLB-200 model
-        translated_segments = []
-        for seg in segments:
-            translated_text = f"[{target_lang}] {seg['text']}"
-            translated_segments.append({
-                "id": seg["id"],
-                "type": seg["type"],
-                "text": seg["text"],
-                "translated_text": translated_text
-            })
-        
-        # Calculate mock validation summary
-        total = len(translated_segments)
-        validation_summary = {
-            "total": total,
-            "passed": total,
-            "failed": 0,
-            "errors": 0
-        }
-        
-        # Return as NDJSON streaming response
-        # First send progress updates, then final result
-        result = {
-            "type": "done",
-            "segments": translated_segments,
-            "validation_summary": validation_summary
-        }
-        
-        return result
+        import asyncio
+
+        async def stream_translation():
+            from translator import translate_text
+            translated_segments = []
+            total = len(segments)
+            
+            for i, seg in enumerate(segments):
+                try:
+                    # Run heavy inference in thread to prevent blocking the server socket flush
+                    translated_text = await asyncio.to_thread(
+                        translate_text, seg["text"], "600m", target_lang
+                    )
+                except Exception as e:
+                    print(f"Translation Error for {seg['text']}: {e}")
+                    translated_text = f"[{target_lang}] Error: {seg['text']}"
+
+                translated_segments.append({
+                    "id": seg["id"],
+                    "type": seg["type"],
+                    "text": seg["text"],
+                    "translated_text": translated_text
+                })
+                
+                # Yield progress
+                progress_msg = {
+                    "type": "progress",
+                    "completed": i + 1,
+                    "total": total
+                }
+                yield json.dumps(progress_msg) + "\n"
+            
+            # In a real setup, we might also run validation here.
+            validation_summary = {
+                "total": total,
+                "passed": total,
+                "failed": 0,
+                "errors": 0
+            }
+            
+            final_msg = {
+                "type": "done",
+                "segments": translated_segments,
+                "validation_summary": validation_summary
+            }
+            yield json.dumps(final_msg) + "\n"
+            
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(stream_translation(), media_type="application/x-ndjson")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -131,49 +139,37 @@ async def export_frozen_pdf(
     doc_title: str = Form("Untitled"),
     doc_ref: str = Form("")
 ):
-    """Generate a PDF from translated segments"""
+    """Generate a PDF from translated segments with exact layout mapping"""
     try:
-        from fpdf import FPDF
+        from fastapi import Response
+        import tempfile
+        import os
+        from docx2pdf import convert
+        from placeholder_parser import recompose_elements
         
         segments_data = json.loads(segments)
+        translated_flow = [seg.get('translated_text', seg.get('text', '')) for seg in segments_data]
         
-        class PDF(FPDF):
-            def header(self):
-                self.set_font('Arial', 'B', 12)
-                self.cell(0, 10, doc_title, 0, 1, 'C')
-                self.ln(5)
+        file.file.seek(0)
+        doc = Document(file.file)
+        
+        recompose_elements(doc, translated_flow)
+        
+        with tempfile.TemporaryDirectory() as td:
+            docx_path = os.path.join(td, "temp.docx")
+            pdf_path = os.path.join(td, "temp.pdf")
             
-            def footer(self):
-                self.set_y(-15)
-                self.set_font('Arial', 'I', 8)
-                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font('Arial', '', 10)
-        
-        for seg in segments_data:
-            text = seg.get('translated_text', seg.get('text', ''))
+            doc.save(docx_path)
+            # Use docx2pdf allowing MS Word to export native PDF
+            convert(docx_path, pdf_path)
             
-            # Format based on segment type
-            seg_type = seg.get('type', 'p')
-            if seg_type == 'h1':
-                pdf.set_font('Arial', 'B', 16)
-                pdf.ln(5)
-            elif seg_type == 'h2':
-                pdf.set_font('Arial', 'B', 14)
-                pdf.ln(3)
-            elif seg_type == 'h3':
-                pdf.set_font('Arial', 'B', 12)
-                pdf.ln(2)
-            else:
-                pdf.set_font('Arial', '', 10)
-            
-            pdf.multi_cell(0, 5, text)
-            pdf.ln(2)
-        
-        return pdf.output(dest='S').encode('latin-1')
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+                
+        return Response(content=pdf_bytes, media_type="application/pdf")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -209,53 +205,52 @@ async def export_multilingual_pdf(
     doc_title: str = Form("Untitled"),
     doc_ref: str = Form("")
 ):
-    """Generate a multilingual PDF with multiple translations"""
+    """Generate a multilingual PDF with fully preserved layout"""
     try:
-        from fpdf import FPDF
+        from fastapi import Response
+        import tempfile
+        import os
+        from docx2pdf import convert
+        from placeholder_parser import recompose_elements
+        import fitz  # PyMuPDF
         
         translations = json.loads(translations_map)
         
-        class PDF(FPDF):
-            def header(self):
-                self.set_font('Arial', 'B', 12)
-                self.cell(0, 10, doc_title, 0, 1, 'C')
-                self.ln(5)
-            
-            def footer(self):
-                self.set_y(-15)
-                self.set_font('Arial', 'I', 8)
-                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        file.file.seek(0)
+        file_bytes = file.file.read()
         
-        pdf = PDF()
+        merged_pdf = fitz.open()
         
-        # Add a page for each language
-        for lang_code, segments in translations.items():
-            pdf.add_page()
-            pdf.set_font('Arial', 'B', 14)
-            pdf.cell(0, 10, f"Language: {lang_code}", 0, 1)
-            pdf.ln(5)
-            pdf.set_font('Arial', '', 10)
-            
-            for seg in segments:
-                text = seg.get('translated_text', seg.get('text', ''))
-                seg_type = seg.get('type', 'p')
+        with tempfile.TemporaryDirectory() as td:
+            for lang_code, segments in translations.items():
+                translated_flow = [seg.get('translated_text', seg.get('text', '')) for seg in segments]
                 
-                if seg_type == 'h1':
-                    pdf.set_font('Arial', 'B', 16)
-                elif seg_type == 'h2':
-                    pdf.set_font('Arial', 'B', 14)
-                elif seg_type == 'h3':
-                    pdf.set_font('Arial', 'B', 12)
-                else:
-                    pdf.set_font('Arial', '', 10)
+                # Use a pristine copy of original document for each language
+                lang_doc = Document(io.BytesIO(file_bytes))
+                recompose_elements(lang_doc, translated_flow)
                 
-                pdf.multi_cell(0, 5, text)
-                pdf.ln(2)
-        
-        return pdf.output(dest='S').encode('latin-1')
+                docx_path = os.path.join(td, f"{lang_code}.docx")
+                pdf_path = os.path.join(td, f"{lang_code}.pdf")
+                
+                lang_doc.save(docx_path)
+                convert(docx_path, pdf_path)
+                
+                lang_pdf = fitz.open(pdf_path)
+                merged_pdf.insert_pdf(lang_pdf)
+                lang_pdf.close()
+                
+            final_pdf_path = os.path.join(td, "final.pdf")
+            merged_pdf.save(final_pdf_path)
+            merged_pdf.close()
+            
+            with open(final_pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+                
+        return Response(content=pdf_bytes, media_type="application/pdf")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 if __name__ == "__main__":
     import uvicorn

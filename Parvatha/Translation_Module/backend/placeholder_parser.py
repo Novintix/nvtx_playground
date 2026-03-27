@@ -3,121 +3,129 @@ from typing import Dict, Tuple, List
 from lxml import etree
 import copy
 
-# Namespaces commonly used in WordprocessingML
 NAMESPACES = {
     'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
-    'wp': 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
-    'pic': 'http://schemas.openxmlformats.org/drawingml/2006/picture',
-    'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
-    'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 }
 
-def _has_text(element) -> bool:
-    """Check if an element or its children contains any text."""
-    texts = element.xpath('.//w:t/text()')
-    result = ''.join(texts).strip()
-    return bool(result)
+def _get_all_parts(doc) -> List:
+    """Get all XML parts that might contain translatable text"""
+    parts = [doc._body._body]
+    for rel in doc.part.rels.values():
+        if 'header' in rel.reltype or 'footer' in rel.reltype:
+            parts.append(rel.target_part._element)
+    return parts
 
-def extract_and_replace_elements(doc) -> Tuple[List[str], Dict[str, etree._Element]]:
+def extract_translatable_elements(doc) -> List[str]:
     """
-    Takes a docx.Document object.
-    Finds tables and paragraphs composed purely of images/shapes.
-    Extracts those heavy XML blobs into an Asset Store.
-    Replaces them with plain text placeholders [TBL_X] and [IMG_Y].
-    Returns: 
-        (list of strings representing the document flow, Dictionary mapping placeholders -> raw XML Element)
+    Extracts purely translatable text chunks, splitting at non-text elements
+    and also splitting whenever the run formatting (rPr) changes to preserve exact layout.
     """
-    body_element = doc._body._body
-    asset_store = {}
     doc_flow = []
     
-    tbl_counter = 1
-    img_counter = 1
-    
-    # Iterate through all direct children of the document body
-    for child in body_element:
-        # If it's a table
-        if child.tag == f"{{{NAMESPACES['w']}}}tbl":
-            # Deep copy the element so we save exactly how it looked
-            stored_element = copy.deepcopy(child)
-            placeholder = f"[TBL_{tbl_counter}]"
-            asset_store[placeholder] = stored_element
-            doc_flow.append(placeholder)
-            tbl_counter += 1
+    for part in _get_all_parts(doc):
+        for p in part.xpath('.//w:p'):
+            descendants = p.xpath('.//w:t | .//w:br | .//w:drawing | .//w:pict | .//w:sym | .//w:tab')
             
-        # If it's a paragraph
-        elif child.tag == f"{{{NAMESPACES['w']}}}p":
-            # Does this paragraph contain drawings/objects?
-            drawings = child.xpath('.//w:drawing')
-            pictures = child.xpath('.//w:pict')
+            current_text = ""
+            last_rpr_str = None
             
-            # If it's purely an image block without translatable text
-            if (drawings or pictures) and not _has_text(child):
-                stored_element = copy.deepcopy(child)
-                placeholder = f"[IMG_{img_counter}]"
-                asset_store[placeholder] = stored_element
-                doc_flow.append(placeholder)
-                img_counter += 1
-            else:
-                # It's a text paragraph (might contain inline images, but mostly text)
-                # Extract the text
-                texts = child.xpath('.//w:t/text()')
-                full_text = ''.join(texts)
-                if full_text.strip():
-                    doc_flow.append(full_text)
+            for node in descendants:
+                if node.tag.endswith('}t'): # It's a text node
+                    parent_r = node.getparent()
+                    rpr = parent_r.find('./w:rPr', namespaces=NAMESPACES)
+                    rpr_str = etree.tostring(rpr) if rpr is not None else b""
                     
-    return doc_flow, asset_store
+                    if last_rpr_str is not None and rpr_str != last_rpr_str:
+                        # Formatting changed! Break the flow to preserve exact styles!
+                        if current_text.strip():
+                            doc_flow.append(current_text)
+                        current_text = ""
+                        
+                    last_rpr_str = rpr_str
+                    
+                    if node.text:
+                        current_text += node.text
+                else:
+                    # It's a flow-breaking element
+                    if current_text.strip():
+                        doc_flow.append(current_text)
+                    current_text = ""
+                    last_rpr_str = None
+            
+            # Emit remaining text at end of paragraph
+            if current_text.strip():
+                doc_flow.append(current_text)
+                
+    return doc_flow
 
-def recompose_elements(doc, translated_flow: List[str], asset_store: Dict[str, etree._Element]):
+def recompose_elements(doc, translated_flow: List[str]):
     """
     Modifies the document in-place.
-    Replaces text nodes with translated flow, preserving w:pPr and w:rPr.
+    Replaces text chunks exactly where they were initially extracted,
+    preserving all non-text elements, and exact inline run formatting.
     """
-    body_element = doc._body._body
     flow_idx = 0
     
-    for child in body_element:
-        if flow_idx >= len(translated_flow):
-            break
+    for part in _get_all_parts(doc):
+        for p in part.xpath('.//w:p'):
+            descendants = p.xpath('.//w:t | .//w:br | .//w:drawing | .//w:pict | .//w:sym | .//w:tab')
             
-        if child.tag == f"{{{NAMESPACES['w']}}}tbl":
-            # Flow expects a placeholder here
-            if translated_flow[flow_idx].startswith("[TBL_"):
-                # We leave the native table intact! The placeholder just skips it.
-                flow_idx += 1
-                
-        elif child.tag == f"{{{NAMESPACES['w']}}}p":
-            drawings = child.xpath('.//w:drawing')
-            pictures = child.xpath('.//w:pict')
+            current_t_nodes = []
+            has_text = False
+            last_rpr_str = None
             
-            if (drawings or pictures) and not _has_text(child):
-                if translated_flow[flow_idx].startswith("[IMG_"):
-                    # Leave native image block intact
-                    flow_idx += 1
-            else:
-                texts = child.xpath('.//w:t/text()')
-                full_text = ''.join(texts)
-                if full_text.strip():
-                    # This paragraph had translatable text.
-                    translated_text = translated_flow[flow_idx]
+            for node in descendants:
+                if node.tag.endswith('}t'):
+                    parent_r = node.getparent()
+                    rpr = parent_r.find('./w:rPr', namespaces=NAMESPACES)
+                    rpr_str = etree.tostring(rpr) if rpr is not None else b""
                     
-                    # Replace the text inside the w:t nodes.
-                    # Preserve the run formatting of the very first w:t node that actually had text.
-                    t_nodes = child.xpath('.//w:t')
-                    first_t = None
-                    for t in t_nodes:
-                        # Only check if it has text. It might be empty.
-                        if t.text and t.text.strip():
-                            if first_t is None:
-                                first_t = t
-                                t.text = translated_text
-                                if translated_text.startswith(' ') or translated_text.endswith(' '):
-                                    t.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
-                            else:
-                                t.text = "" # wipe out the rest
-                                
-                    # If we somehow didn't find a first_t with a strip(), fallback to the very first t node 
-                    if first_t is None and len(t_nodes) > 0:
-                        t_nodes[0].text = translated_text
+                    if last_rpr_str is not None and rpr_str != last_rpr_str:
+                        # Formatting changed! Flush chunk
+                        if has_text:
+                            if flow_idx < len(translated_flow):
+                                _replace_text_in_nodes(current_t_nodes, translated_flow[flow_idx])
+                                flow_idx += 1
+                        current_t_nodes = []
+                        has_text = False
                         
+                    last_rpr_str = rpr_str
+                    
+                    current_t_nodes.append(node)
+                    if node.text and node.text.strip():
+                        has_text = True
+                else:
+                    # Flush the current chunk
+                    if has_text:
+                        if flow_idx < len(translated_flow):
+                            _replace_text_in_nodes(current_t_nodes, translated_flow[flow_idx])
+                            flow_idx += 1
+                    current_t_nodes = []
+                    has_text = False
+                    last_rpr_str = None
+                    
+            # Flush remaining chunk
+            if has_text:
+                if flow_idx < len(translated_flow):
+                    _replace_text_in_nodes(current_t_nodes, translated_flow[flow_idx])
                     flow_idx += 1
+
+def _replace_text_in_nodes(t_nodes: List, translated_text: str):
+    """
+    Places the translated text into the first available text node
+    and clears the rest within the exact same continuous text chunk.
+    """
+    first_t = None
+    for t in t_nodes:
+        if t.text and t.text.strip():
+            if first_t is None:
+                first_t = t
+                t.text = translated_text
+                # Maintain spacing if needed
+                if translated_text.startswith(' ') or translated_text.endswith(' '):
+                    t.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+            else:
+                t.text = ""
+                
+    if first_t is None and t_nodes:
+        t_nodes[0].text = translated_text

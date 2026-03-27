@@ -79,8 +79,27 @@ def _translate_batch(chunks: list[str], tokenizer, model, forced_bos_token_id: i
     return tokenizer.batch_decode(output_ids, skip_special_tokens=True)
 
 
+def _should_translate(text: str) -> bool:
+    clean = text.strip()
+    if not clean:
+        return False
+    # Skip if it's purely digits/punctuation (e.g. "12", "...", "3.14")
+    import string
+    if all(char in string.digits + string.punctuation + " \n\r\t\u2013\u2014\xa0" for char in clean):
+        return False
+    # Known exact language signs from the IFU images
+    lang_signs = {"en", "da", "de", "es", "fi", "fr", "id", "it", "nl", "no", "pt", "sv", "zh", "ja"}
+    if clean.lower() in lang_signs:
+        return False
+    return True
+
+
 def translate_chunks(text: str, model_key: str = "600m", target_lang: str = "fr", batch_size: int = 16):
     """Generator yielding (translated_chunk, step, total) for each chunk using batching."""
+    if not _should_translate(text):
+        yield text, 1, 1
+        return
+        
     nllb_code = LANGUAGES.get(target_lang, {}).get("nllb", "fra_Latn")
     tokenizer, model = _get_model(model_key)
     forced_bos_token_id = tokenizer.convert_tokens_to_ids(nllb_code)

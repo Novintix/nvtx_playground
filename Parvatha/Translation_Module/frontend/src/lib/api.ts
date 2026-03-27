@@ -90,6 +90,16 @@ export async function translateSegments(
     throw new Error(`Translation failed: ${response.statusText}`);
   }
 
+  // Check if response is standard JSON
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    return { 
+      segments: data.segments || [], 
+      validationSummary: data.validation_summary || data.validationSummary 
+    };
+  }
+
   // Handle streaming NDJSON response
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
@@ -101,26 +111,41 @@ export async function translateSegments(
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
     
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const msg = JSON.parse(line);
-        if (msg.type === 'progress' && onProgress) {
-          onProgress(msg.completed, msg.total);
-        } else if (msg.type === 'done') {
-          return { segments: msg.segments, validationSummary: msg.validation_summary };
-        } else if (msg.type === 'error') {
-          throw new Error(msg.detail);
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'progress' && onProgress) {
+            onProgress(msg.completed, msg.total);
+          } else if (msg.type === 'done') {
+            return { segments: msg.segments, validationSummary: msg.validation_summary };
+          } else if (msg.type === 'error') {
+            throw new Error(msg.detail);
+          }
+        } catch (e) {
+          console.warn('Failed to parse line:', line);
         }
-      } catch (e) {
-        console.warn('Failed to parse line:', line);
       }
+    }
+
+    if (done) {
+      if (buffer.trim()) {
+        try {
+          const msg = JSON.parse(buffer);
+          if (msg.type === 'done') {
+            return { segments: msg.segments, validationSummary: msg.validation_summary };
+          }
+        } catch (e) {
+          console.warn('Failed to parse final buffer:', buffer);
+        }
+      }
+      break;
     }
   }
 
